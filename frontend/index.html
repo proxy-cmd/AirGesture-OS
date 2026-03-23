@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChillerMate | Dispense</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-screen="dispense">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <main class="app-shell">
+    <header class="top-bar">
+      <h1>Cash Dispense Prototype</h1>
+      <a class="ghost-btn" href="./pay.html">Go to Pay Screen</a>
+    </header>
+
+    <section class="panel panel-grid">
+      <div class="card qr-card">
+        <h2>Scan to Pay</h2>
+        <p class="muted">Receiver ID: <span id="receiverId">machine_001</span></p>
+        <div id="qrcode" class="qr-box" aria-label="Payment QR"></div>
+      </div>
+
+      <div class="card status-card">
+        <h2>Machine Status</h2>
+        <p id="statusText" class="status-text">Waiting for payment...</p>
+        <p class="balance-row">Machine Balance: <span id="machineBalance">?0</span></p>
+
+        <div id="cashStage" class="cash-stage hidden" aria-hidden="true">
+          <div class="note note-a">?10</div>
+          <div class="note note-b">?10</div>
+          <div class="note note-c">?20</div>
+          <div class="cash-slot"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
