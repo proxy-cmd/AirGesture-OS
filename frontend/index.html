@@ -75,26 +75,51 @@
         <h2>Pay Console</h2>
         <p class="muted">Use this on phone to scan laptop QR.</p>
       </div>
+      <div class="pay-mode-switch">
+        <button id="modeScanBtn" class="secondary-btn mode-btn active" type="button">Scan QR Code</button>
+        <button id="modeDemoBtn" class="secondary-btn mode-btn" type="button">Demo Mode</button>
+      </div>
       <div class="panel-grid">
         <div class="card">
-          <h3>QR Scanner</h3>
+          <h3>Receiver Detection</h3>
           <p class="muted">Payer account: <strong>user1</strong></p>
-          <div id="reader" class="scanner-box"></div>
-          <div class="scanner-actions">
-            <button id="startScanBtn" class="primary-btn" type="button">Start Camera Scanner</button>
-            <button id="useDemoReceiverBtn" class="secondary-btn" type="button">Use Demo Receiver</button>
+          <div id="scanModeWrap">
+            <div id="reader" class="scanner-box"></div>
+            <div class="scanner-actions">
+              <button id="requestCamBtn" class="secondary-btn" type="button">Enable Camera Access</button>
+              <button id="startScanBtn" class="primary-btn" type="button">Start Camera Scanner</button>
+            </div>
+          </div>
+          <div id="demoModeWrap" class="hidden">
+            <div class="demo-box">
+              <p class="muted">Skip camera and use default receiver for quick demo.</p>
+              <button id="useDemoReceiverBtn" class="secondary-btn" type="button">Use Demo Receiver</button>
+            </div>
           </div>
         </div>
 
         <div class="card">
-          <h3>Payment</h3>
+          <h3>Payment Flow</h3>
           <p class="balance-row">Detected Receiver: <span id="receiverText">Not selected</span></p>
 
-          <label for="amountInput" class="label">Amount (INR)</label>
-          <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
+          <div class="pay-steps">
+            <div class="step-card active" id="amountStep">
+              <p class="step-title">Step 1: Enter Amount</p>
+              <label for="amountInput" class="label">Amount (INR)</label>
+              <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
+              <button id="continueToPinBtn" class="primary-btn" type="button" disabled>Continue</button>
+            </div>
 
-          <button id="payBtn" class="primary-btn" type="button" disabled>Pay Now</button>
-          <p id="paymentResult" class="result-text muted">Scan QR or choose demo receiver.</p>
+            <div class="step-card" id="pinStep">
+              <p class="step-title">Step 2: Enter UPI PIN</p>
+              <label for="pinInput" class="label">6-digit PIN</label>
+              <input id="pinInput" class="text-input" type="password" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
+              <button id="confirmPayBtn" class="primary-btn" type="button">Pay Securely</button>
+            </div>
+          </div>
+
+          <p id="paymentResult" class="result-text muted">Choose scan or demo mode to begin.</p>
+          <div id="paymentPulse" class="payment-pulse hidden">Processing payment...</div>
           <p class="balance-row">Your Balance: <span id="senderBalance">&#8377;1000</span></p>
         </div>
       </div>

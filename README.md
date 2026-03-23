@@ -4,7 +4,11 @@ A realtime prototype where one page supports the complete flow:
 
 1. Intro step explains the 2-device demo.
 2. Dispense step shows QR for `machine_001`.
-3. Pay step scans that QR (or uses demo receiver), sends payment, and triggers realtime dispense animation.
+3. Pay step supports two modes:
+   - Scan QR mode (camera permission + scanner)
+   - Demo mode (no camera)
+4. Payment flow is interactive: amount -> PIN (`123456`) -> success.
+5. Successful payment triggers realtime dispense animation.
 
 ## Tech Stack
 
