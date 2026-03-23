@@ -40,40 +40,28 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-Backend runs on: `http://localhost:5000`
-
-### 2) Start frontend (important for camera access)
-
-Open a new terminal:
+### 2) Serve frontend
 
 ```bash
 cd frontend
 python -m http.server 5500
 ```
 
-Frontend pages:
+## Demo Routes
 
-- Role select: `http://localhost:5500/index.html`
-- Dispense mode: `http://localhost:5500/dispense.html`
-- Pay mode: `http://localhost:5500/pay.html`
+- Role select: `/index.html`
+- Dispense mode: `/dispense.html`
+- Pay mode: `/pay.html`
 
 ## Best Demo Setup (Phone + Laptop)
 
-1. Open `index.html` on both devices.
-2. On laptop, choose **Dispense Mode**.
-3. On phone, choose **Pay Mode**.
-4. On phone, tap **Start Scanner** and scan laptop QR.
-5. Enter amount and tap **Pay Now**.
-6. Laptop dispense screen updates in realtime and plays note animation.
-
-## Backend URL Setting
-
-On the role select page, set `Socket/API URL` once. It is stored in browser local storage and reused on pay + dispense screens.
-
-Example:
-
-- Local: `http://localhost:5000`
-- Hosted backend: `https://your-backend-host.example`
+1. Open role select on both devices.
+2. Save your deployed backend URL in **Connect Backend**.
+3. On laptop, open **Dispense Mode**.
+4. On phone, open **Pay Mode**.
+5. On phone, tap **Start Scanner** and scan laptop QR.
+6. Enter amount and tap **Pay Now**.
+7. Laptop updates in realtime with note animation.
 
 ## Dummy Accounts
 

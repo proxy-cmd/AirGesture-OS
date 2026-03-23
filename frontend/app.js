@@ -1,4 +1,3 @@
-const DEFAULT_BACKEND_URL = "http://localhost:5000";
 const RUPEE = "\u20B9";
 
 const state = {
@@ -7,23 +6,90 @@ const state = {
   scannerRunning: false,
 };
 
+function normalizeUrl(value) {
+  return String(value || "").trim().replace(/\/$/, "");
+}
+
 function getBackendUrl() {
-  return localStorage.getItem("backend_url") || DEFAULT_BACKEND_URL;
+  return normalizeUrl(localStorage.getItem("backend_url"));
+}
+
+function hasBackendUrl() {
+  return Boolean(getBackendUrl());
 }
 
 function formatInr(amount) {
   return `${RUPEE}${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
-function connectSocket() {
-  const socket = io(getBackendUrl());
+function setMessage(element, text, styleClass = "muted") {
+  if (!element) {
+    return;
+  }
 
-  socket.on("connect", () => {
-    console.log("Socket connected");
+  element.textContent = text;
+  element.className = `result-text ${styleClass}`;
+}
+
+async function fetchJson(path, options = {}) {
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    throw new Error("Backend URL is not configured");
+  }
+
+  const response = await fetch(`${backendUrl}${path}`, options);
+  const data = await response.json();
+
+  if (!response.ok) {
+    const message = data?.message || "Request failed";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+async function loadBalances() {
+  try {
+    const accounts = await fetchJson("/accounts");
+
+    const senderBalance = document.getElementById("senderBalance");
+    const machineBalance = document.getElementById("machineBalance");
+
+    if (senderBalance && typeof accounts.user1 === "number") {
+      senderBalance.textContent = formatInr(accounts.user1);
+    }
+
+    if (machineBalance && typeof accounts.machine_001 === "number") {
+      machineBalance.textContent = formatInr(accounts.machine_001);
+    }
+  } catch (error) {
+    console.warn(error.message);
+  }
+}
+
+function connectSocket() {
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    const statusText = document.getElementById("statusText");
+    if (statusText) {
+      statusText.textContent = "Set endpoint from role select first.";
+    }
+    return null;
+  }
+
+  const socket = io(backendUrl, {
+    transports: ["websocket", "polling"],
   });
 
   socket.on("payment_received", (payload) => {
     handlePaymentEvent(payload);
+  });
+
+  socket.on("connect_error", () => {
+    const statusText = document.getElementById("statusText");
+    if (statusText) {
+      statusText.textContent = "Realtime link unavailable. Check endpoint.";
+    }
   });
 
   return socket;
@@ -40,7 +106,7 @@ function playSuccessBeep() {
   const gain = ctx.createGain();
 
   oscillator.type = "triangle";
-  oscillator.frequency.value = 740;
+  oscillator.frequency.value = 760;
   gain.gain.value = 0.02;
 
   oscillator.connect(gain);
@@ -50,57 +116,76 @@ function playSuccessBeep() {
   oscillator.stop(ctx.currentTime + 0.12);
 }
 
-function triggerCashAnimation() {
+function setNoteLabels(amount) {
+  const values = [Math.ceil(amount / 3), Math.floor(amount / 3), amount - Math.ceil(amount / 3) - Math.floor(amount / 3)]
+    .filter((x) => x > 0);
+
+  const notes = Array.from(document.querySelectorAll("#cashStage .note"));
+  notes.forEach((note, index) => {
+    const fallback = values[values.length - 1] || amount;
+    const value = values[index] || fallback;
+    note.textContent = `${RUPEE}${value}`;
+  });
+}
+
+function triggerCashAnimation(amount) {
   const stage = document.getElementById("cashStage");
   if (!stage) {
     return;
   }
 
+  setNoteLabels(amount);
+
   stage.classList.remove("hidden");
   stage.classList.remove("active");
 
-  // Force reflow so the same animation can replay for each payment.
+  // Force reflow so the animation can replay for every incoming payment.
   void stage.offsetWidth;
 
-  stage.classList.add("active");
+  setTimeout(() => {
+    stage.classList.add("active");
+  }, 180);
 }
 
 function handlePaymentEvent(payload) {
   const statusText = document.getElementById("statusText");
   const machineBalance = document.getElementById("machineBalance");
+  const amount = Number(payload.amount || 0);
 
   if (statusText) {
-    statusText.textContent = `${formatInr(payload.amount)} received`;
+    statusText.textContent = `${formatInr(amount)} received`; 
   }
 
-  if (machineBalance) {
+  if (machineBalance && typeof payload.machine_balance === "number") {
     machineBalance.textContent = formatInr(payload.machine_balance);
   }
 
-  triggerCashAnimation();
+  triggerCashAnimation(amount);
   playSuccessBeep();
 }
 
 async function sendPayment() {
   const amountInput = document.getElementById("amountInput");
   const paymentResult = document.getElementById("paymentResult");
-  const senderBalance = document.getElementById("senderBalance");
+
+  if (!hasBackendUrl()) {
+    setMessage(paymentResult, "Set endpoint from role select first.", "error");
+    return;
+  }
 
   if (!state.receiverId) {
-    paymentResult.textContent = "Scan QR first.";
-    paymentResult.className = "result-text error";
+    setMessage(paymentResult, "Scan QR first.", "error");
     return;
   }
 
   const amount = Number(amountInput.value);
   if (!amount || amount <= 0) {
-    paymentResult.textContent = "Enter a valid amount.";
-    paymentResult.className = "result-text error";
+    setMessage(paymentResult, "Enter a valid amount.", "error");
     return;
   }
 
   try {
-    const response = await fetch(`${getBackendUrl()}/pay`, {
+    const data = await fetchJson("/pay", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -112,23 +197,16 @@ async function sendPayment() {
       }),
     });
 
-    const data = await response.json();
+    setMessage(paymentResult, `Payment successful: ${formatInr(data.amount)}`, "success");
 
-    if (!response.ok || data.status !== "success") {
-      const msg = data.message || "Payment failed";
-      paymentResult.textContent = msg;
-      paymentResult.className = "result-text error";
-      return;
+    const senderBalance = document.getElementById("senderBalance");
+    if (senderBalance && typeof data.sender_balance === "number") {
+      senderBalance.textContent = formatInr(data.sender_balance);
     }
 
-    paymentResult.textContent = `Payment successful: ${formatInr(data.amount)}`;
-    paymentResult.className = "result-text success";
-    senderBalance.textContent = formatInr(data.sender_balance);
     amountInput.value = "";
   } catch (error) {
-    paymentResult.textContent = "Could not connect to backend.";
-    paymentResult.className = "result-text error";
-    console.error(error);
+    setMessage(paymentResult, error.message || "Payment failed", "error");
   }
 }
 
@@ -136,16 +214,19 @@ function buildDispenseScreen() {
   const receiverPayload = { receiver: "machine_001" };
   const qrContainer = document.getElementById("qrcode");
 
-  new QRCode(qrContainer, {
-    text: JSON.stringify(receiverPayload),
-    width: 220,
-    height: 220,
-    colorDark: "#101010",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H,
-  });
+  if (qrContainer) {
+    new QRCode(qrContainer, {
+      text: JSON.stringify(receiverPayload),
+      width: 220,
+      height: 220,
+      colorDark: "#261b13",
+      colorLight: "#fffdf8",
+      correctLevel: QRCode.CorrectLevel.H,
+    });
+  }
 
   connectSocket();
+  loadBalances();
 }
 
 function setReceiver(receiverId) {
@@ -154,17 +235,22 @@ function setReceiver(receiverId) {
   const payBtn = document.getElementById("payBtn");
   const paymentResult = document.getElementById("paymentResult");
 
-  receiverText.textContent = receiverId;
-  payBtn.disabled = false;
-  paymentResult.textContent = "Receiver ready. Enter amount and pay.";
-  paymentResult.className = "result-text muted";
+  if (receiverText) {
+    receiverText.textContent = receiverId;
+  }
+
+  if (payBtn) {
+    payBtn.disabled = !hasBackendUrl();
+  }
+
+  setMessage(paymentResult, "Receiver ready. Enter amount and pay.", "muted");
 }
 
 async function onScanSuccess(decodedText) {
   try {
     const parsed = JSON.parse(decodedText);
     if (!parsed.receiver) {
-      throw new Error("receiver missing");
+      throw new Error("Invalid QR payload");
     }
 
     setReceiver(parsed.receiver);
@@ -175,22 +261,29 @@ async function onScanSuccess(decodedText) {
     }
   } catch (error) {
     const paymentResult = document.getElementById("paymentResult");
-    paymentResult.textContent = "Invalid QR data";
-    paymentResult.className = "result-text error";
-    console.error(error);
+    setMessage(paymentResult, "Invalid QR data", "error");
   }
 }
 
 async function startScanner() {
   const paymentResult = document.getElementById("paymentResult");
 
+  if (!hasBackendUrl()) {
+    setMessage(paymentResult, "Set endpoint from role select first.", "error");
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    setMessage(paymentResult, "Camera needs secure site (HTTPS).", "error");
+    return;
+  }
+
   if (!state.html5QrCode) {
     state.html5QrCode = new Html5Qrcode("reader");
   }
 
   if (state.scannerRunning) {
-    paymentResult.textContent = "Scanner already running.";
-    paymentResult.className = "result-text muted";
+    setMessage(paymentResult, "Scanner already running.", "muted");
     return;
   }
 
@@ -201,22 +294,29 @@ async function startScanner() {
       onScanSuccess,
       () => {}
     );
+
     state.scannerRunning = true;
-    paymentResult.textContent = "Scanner active. Point camera at QR.";
-    paymentResult.className = "result-text muted";
+    setMessage(paymentResult, "Scanner active. Point camera at QR.", "muted");
   } catch (error) {
-    paymentResult.textContent = "Camera not available. Try browser permissions.";
-    paymentResult.className = "result-text error";
-    console.error(error);
+    setMessage(paymentResult, "Camera unavailable. Check permissions.", "error");
   }
 }
 
 function buildPayScreen() {
   const startScanBtn = document.getElementById("startScanBtn");
   const payBtn = document.getElementById("payBtn");
+  const paymentResult = document.getElementById("paymentResult");
 
   startScanBtn.addEventListener("click", startScanner);
   payBtn.addEventListener("click", sendPayment);
+
+  if (!hasBackendUrl()) {
+    startScanBtn.disabled = true;
+    payBtn.disabled = true;
+    setMessage(paymentResult, "Save endpoint in Role Select to continue.", "error");
+  }
+
+  loadBalances();
 }
 
 function buildHomeScreen() {
@@ -224,19 +324,25 @@ function buildHomeScreen() {
   const saveBackendBtn = document.getElementById("saveBackendBtn");
   const backendSaveResult = document.getElementById("backendSaveResult");
 
-  backendUrlInput.value = getBackendUrl();
+  const current = getBackendUrl();
+  backendUrlInput.value = current;
+  backendSaveResult.textContent = current ? `Current endpoint: ${current}` : "No endpoint saved yet.";
 
   saveBackendBtn.addEventListener("click", () => {
-    const value = backendUrlInput.value.trim();
-    if (!value) {
-      backendSaveResult.textContent = "Enter a valid backend URL.";
-      backendSaveResult.className = "result-text error";
+    const value = normalizeUrl(backendUrlInput.value);
+
+    try {
+      const parsed = new URL(value);
+      if (!["https:", "http:"].includes(parsed.protocol)) {
+        throw new Error();
+      }
+    } catch {
+      setMessage(backendSaveResult, "Enter a valid URL (http or https).", "error");
       return;
     }
 
-    localStorage.setItem("backend_url", value.replace(/\/$/, ""));
-    backendSaveResult.textContent = `Saved: ${localStorage.getItem("backend_url")}`;
-    backendSaveResult.className = "result-text success";
+    localStorage.setItem("backend_url", value);
+    setMessage(backendSaveResult, `Endpoint saved: ${value}`, "success");
   });
 }
 

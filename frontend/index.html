@@ -3,36 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChillerMate | Role Select</title>
+  <title>Astera Bank | Prototype Gateway</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body data-screen="home">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-cream"></div>
+  <div class="grain"></div>
 
-  <main class="app-shell">
-    <section class="panel home-panel">
-      <p class="pill">Single Site Demo</p>
-      <h1>ChillerMate Prototype</h1>
-      <p class="muted lead">
-        Open this same site on two devices. Use <strong>Pay</strong> on phone and <strong>Dispense</strong> on laptop to show live QR payment and note-dispense animation.
+  <main class="app-shell home-shell">
+    <header class="brand-head reveal-up">
+      <div class="crest">AB</div>
+      <div>
+        <p class="bank-title">Astera Bank</p>
+        <p class="bank-sub">Prototype Exchange Studio</p>
+      </div>
+    </header>
+
+    <section class="panel home-panel reveal-up delay-1">
+      <p class="pill">Instant Demo Flow</p>
+      <h1>Virtual QR To Cash Dispense</h1>
+      <p class="lead">
+        Run this same site on two devices. Open <strong>Pay</strong> on phone and <strong>Dispense</strong> on laptop for live payment confirmation with cash animation.
       </p>
 
       <div class="home-actions">
         <a class="primary-btn home-btn" href="./pay.html">Open Pay Mode</a>
-        <a class="ghost-btn home-btn" href="./dispense.html">Open Dispense Mode</a>
+        <a class="secondary-btn home-btn" href="./dispense.html">Open Dispense Mode</a>
       </div>
 
       <div class="card backend-card">
-        <h2>Backend Endpoint</h2>
-        <p class="muted">Set once. Stored in this browser for all screens.</p>
-        <label for="backendUrlInput" class="label">Socket/API URL</label>
-        <input id="backendUrlInput" class="text-input" type="url" placeholder="http://localhost:5000" />
-        <button id="saveBackendBtn" class="primary-btn">Save Backend URL</button>
-        <p id="backendSaveResult" class="result-text muted">Current default: http://localhost:5000</p>
+        <h2>Connect Backend</h2>
+        <p class="muted">Save once in this browser and both modes will use it automatically.</p>
+
+        <label for="backendUrlInput" class="label">Realtime API URL</label>
+        <input id="backendUrlInput" class="text-input" type="url" placeholder="https://your-backend-domain.example" />
+        <button id="saveBackendBtn" class="primary-btn">Save Endpoint</button>
+        <p id="backendSaveResult" class="result-text muted">No endpoint saved yet.</p>
       </div>
     </section>
   </main>
