@@ -414,6 +414,29 @@ h3 {
   margin-top: 6px;
 }
 
+.mini-progress {
+  margin: 10px 0 8px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.progress-dot {
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 999px;
+  font-size: 0.77rem;
+  font-weight: 700;
+  color: #7f6f62;
+  background: #f4e9d8;
+  border: 1px solid rgba(188, 130, 73, 0.2);
+}
+
+.progress-dot.active {
+  color: #fff8ef;
+  background: linear-gradient(145deg, #d69a5f, #c68543);
+}
+
 .step-card {
   display: none;
   border: 1px solid rgba(186, 148, 108, 0.32);
@@ -475,6 +498,51 @@ h3 {
   color: #7e5730;
   font-weight: 600;
   animation: pulseChip 1s ease infinite;
+}
+
+.success-card {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #eaf4ed;
+  border: 1px solid rgba(61, 139, 87, 0.34);
+  animation: revealUp 0.35s ease both;
+}
+
+.success-title {
+  margin: 0;
+  font-weight: 800;
+  color: #2e6a43;
+}
+
+.success-amount {
+  margin: 4px 0 0;
+  color: #2e6a43;
+}
+
+.recent-box {
+  margin-top: 12px;
+  border: 1px solid rgba(188, 130, 73, 0.24);
+  border-radius: 12px;
+  background: #fff9f0;
+  padding: 10px 12px;
+}
+
+.recent-title {
+  margin: 0 0 8px;
+  font-weight: 800;
+  color: #6d4f35;
+}
+
+.recent-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.recent-list li {
+  margin-bottom: 5px;
+  color: #6f5a48;
+  font-size: 0.92rem;
 }
 
 .success { color: var(--ok); }

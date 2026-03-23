@@ -17,6 +17,7 @@ const state = {
   pendingAmount: 0,
   socket: null,
   qrBuilt: false,
+  recentPayments: [],
 };
 
 function formatInr(amount) {
@@ -59,6 +60,22 @@ function setSection(targetId) {
 function setActivePayStep(step) {
   getById("amountStep")?.classList.toggle("active", step === "amount");
   getById("pinStep")?.classList.toggle("active", step === "pin");
+  updateProgress(step);
+}
+
+function updateProgress(step = "receiver") {
+  const order = ["receiver", "amount", "pin", "done"];
+  const targetIdx = order.indexOf(step);
+  const dots = {
+    receiver: getById("dotReceiver"),
+    amount: getById("dotAmount"),
+    pin: getById("dotPin"),
+    done: getById("dotDone"),
+  };
+
+  order.forEach((key, idx) => {
+    dots[key]?.classList.toggle("active", idx <= targetIdx && targetIdx >= 0);
+  });
 }
 
 function togglePayMode(mode) {
@@ -82,6 +99,7 @@ function togglePayMode(mode) {
     state.receiverId = null;
     getById("receiverText").textContent = "Not selected";
     setResult(getById("paymentResult"), "Scan QR code to continue.", "muted");
+    updateProgress("receiver");
     updateContinueButton();
   }
 
@@ -240,6 +258,7 @@ function setReceiver(receiverId) {
   if (receiverText) receiverText.textContent = receiverId;
 
   updateContinueButton();
+  updateProgress("amount");
 }
 
 async function ensureCameraPermission() {
@@ -356,6 +375,7 @@ function continueToPin() {
 
   state.pendingAmount = amount;
   setActivePayStep("pin");
+  updateProgress("pin");
   setResult(result, "Enter 6-digit PIN to confirm payment.", "muted");
   getById("pinInput")?.focus();
 }
@@ -364,6 +384,33 @@ function showPulse(show) {
   const pulse = getById("paymentPulse");
   if (!pulse) return;
   pulse.classList.toggle("hidden", !show);
+}
+
+function showSuccess(amount, receiverId) {
+  const card = getById("successCard");
+  const text = getById("successAmount");
+  if (!card || !text) return;
+
+  text.textContent = `${formatInr(amount)} sent to ${receiverId}`;
+  card.classList.remove("hidden");
+  setTimeout(() => card.classList.add("hidden"), 2400);
+}
+
+function renderRecentPayments() {
+  const list = getById("recentList");
+  if (!list) return;
+
+  list.innerHTML = "";
+  if (state.recentPayments.length === 0) {
+    list.innerHTML = "<li class=\"muted\">No payments yet.</li>";
+    return;
+  }
+
+  state.recentPayments.slice(0, 5).forEach((entry) => {
+    const li = document.createElement("li");
+    li.textContent = `${entry.time} - ${formatInr(entry.amount)} to ${entry.to}`;
+    list.appendChild(li);
+  });
 }
 
 async function confirmPayment() {
@@ -406,6 +453,16 @@ async function confirmPayment() {
 
     getById("amountInput").value = "";
     getById("pinInput").value = "";
+    showSuccess(data.amount, state.receiverId);
+    updateProgress("done");
+
+    state.recentPayments.unshift({
+      amount: data.amount,
+      to: state.receiverId,
+      time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+    });
+    renderRecentPayments();
+
     state.pendingAmount = 0;
     setActivePayStep("amount");
     updateContinueButton();
@@ -438,6 +495,8 @@ function initPayControls() {
   getById("confirmPayBtn")?.addEventListener("click", confirmPayment);
 
   togglePayMode("scan");
+  updateProgress("receiver");
+  renderRecentPayments();
   loadBalances();
   payInitialized = true;
 }

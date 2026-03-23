@@ -101,6 +101,12 @@
         <div class="card">
           <h3>Payment Flow</h3>
           <p class="balance-row">Detected Receiver: <span id="receiverText">Not selected</span></p>
+          <div class="mini-progress" id="miniProgress">
+            <span class="progress-dot active" id="dotReceiver">Receiver</span>
+            <span class="progress-dot" id="dotAmount">Amount</span>
+            <span class="progress-dot" id="dotPin">PIN</span>
+            <span class="progress-dot" id="dotDone">Done</span>
+          </div>
 
           <div class="pay-steps">
             <div class="step-card active" id="amountStep">
@@ -120,7 +126,18 @@
 
           <p id="paymentResult" class="result-text muted">Choose scan or demo mode to begin.</p>
           <div id="paymentPulse" class="payment-pulse hidden">Processing payment...</div>
+          <div id="successCard" class="success-card hidden">
+            <p class="success-title">Payment Completed</p>
+            <p id="successAmount" class="success-amount">&#8377;0 sent to machine_001</p>
+          </div>
           <p class="balance-row">Your Balance: <span id="senderBalance">&#8377;1000</span></p>
+
+          <div class="recent-box">
+            <p class="recent-title">Recent Payments</p>
+            <ul id="recentList" class="recent-list">
+              <li class="muted">No payments yet.</li>
+            </ul>
+          </div>
         </div>
       </div>
     </section>
