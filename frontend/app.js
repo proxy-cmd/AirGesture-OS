@@ -18,6 +18,7 @@ const state = {
   socket: null,
   qrBuilt: false,
   activeSection: "homeSection",
+  txIds: new Set(),
 };
 
 function el(id) {
@@ -28,6 +29,14 @@ function formatInr(amount) {
   return `${RUPEE}${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
+function formatTime(ts) {
+  try {
+    return new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "--:--";
+  }
+}
+
 function setResult(msg, cls = "muted") {
   const target = el("paymentResult");
   if (!target) return;
@@ -36,10 +45,7 @@ function setResult(msg, cls = "muted") {
 }
 
 function openCameraHelpModal() {
-  if (state.activeSection !== "paySection" || state.payMode !== "scan") {
-    return;
-  }
-
+  if (state.activeSection !== "paySection" || state.payMode !== "scan") return;
   const modal = el("cameraHelpModal");
   if (!modal) return;
   modal.classList.remove("hidden");
@@ -51,6 +57,33 @@ function closeCameraHelpModal() {
   if (!modal) return;
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
+}
+
+function openPayFlowModal() {
+  const modal = el("payFlowModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  setFlowStep("amount");
+  setTimeout(() => el("amountInput")?.focus(), 150);
+}
+
+function closePayFlowModal() {
+  const modal = el("payFlowModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+
+  state.pendingAmount = 0;
+  if (el("amountInput")) el("amountInput").value = "";
+  if (el("pinInput")) el("pinInput").value = "";
+}
+
+function setFlowStep(step) {
+  el("flowAmountStep")?.classList.toggle("active", step === "amount");
+  el("flowPinStep")?.classList.toggle("active", step === "pin");
+  el("flowProcessingStep")?.classList.toggle("active", step === "processing");
+  el("flowSuccessStep")?.classList.toggle("active", step === "success");
 }
 
 function setSection(targetId) {
@@ -70,34 +103,11 @@ function setSection(targetId) {
 
   if (targetId !== "paySection") {
     closeCameraHelpModal();
+    closePayFlowModal();
   }
 
-  if (targetId === "dispenseSection") {
-    buildDispense();
-  }
-
-  if (targetId === "paySection") {
-    initPayControls();
-  }
-}
-
-function setActivePayStep(step) {
-  el("amountStep")?.classList.toggle("active", step === "amount");
-  el("pinStep")?.classList.toggle("active", step === "pin");
-}
-
-function revealScanPayFlow(show) {
-  el("scanPayFlow")?.classList.toggle("hidden", !show);
-}
-
-function resetPaySteps() {
-  state.pendingAmount = 0;
-  el("amountInput").value = "";
-  el("pinInput").value = "";
-  setActivePayStep("amount");
-  revealScanPayFlow(false);
-  el("continueToPinBtn").disabled = true;
-  el("successCard")?.classList.add("hidden");
+  if (targetId === "dispenseSection") buildDispense();
+  if (targetId === "paySection") initPayControls();
 }
 
 function togglePayMode(mode) {
@@ -113,15 +123,13 @@ function togglePayMode(mode) {
     state.scannerRunning = false;
   }
 
-  if (mode === "demo") {
-    setReceiver(RECEIVER_ID);
-    revealScanPayFlow(true);
-    setResult("Demo receiver selected. Enter amount.", "muted");
-  } else {
-    state.receiverId = null;
-    el("receiverText").textContent = "Not selected";
+  state.receiverId = null;
+  if (el("receiverText")) el("receiverText").textContent = "Not selected";
+
+  if (mode === "scan") {
     setResult("Scan QR to begin payment flow.", "muted");
-    resetPaySteps();
+  } else {
+    setResult("Demo mode active. Tap Use Demo Receiver.", "muted");
   }
 }
 
@@ -157,17 +165,10 @@ async function autoConnectBackend() {
 }
 
 async function fetchJson(path, options = {}) {
-  if (!state.backendUrl) {
-    throw new Error("Backend unavailable");
-  }
-
+  if (!state.backendUrl) throw new Error("Backend unavailable");
   const res = await fetch(`${state.backendUrl}${path}`, options);
   const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data?.message || "Request failed");
-  }
-
+  if (!res.ok) throw new Error(data?.message || "Request failed");
   return data;
 }
 
@@ -176,6 +177,33 @@ async function loadBalances() {
     const data = await fetchJson("/accounts");
     if (el("senderBalance")) el("senderBalance").textContent = formatInr(data.user1);
     if (el("machineBalance")) el("machineBalance").textContent = formatInr(data.machine_001);
+  } catch {}
+}
+
+const txData = [];
+function addTransaction(entry) {
+  if (!entry || !entry.id || state.txIds.has(entry.id)) return;
+  state.txIds.add(entry.id);
+  txData.unshift(entry);
+
+  const trimmed = txData.slice(0, 10);
+  txData.length = 0;
+  txData.push(...trimmed);
+
+  const list = el("txList");
+  if (!list) return;
+  list.innerHTML = "";
+  txData.forEach((tx) => {
+    const li = document.createElement("li");
+    li.textContent = `${formatTime(tx.timestamp)} - ${formatInr(tx.amount)} from ${tx.from}`;
+    list.appendChild(li);
+  });
+}
+
+async function loadTransactions() {
+  try {
+    const rows = await fetchJson("/transactions");
+    rows.forEach((row) => addTransaction(row));
   } catch {}
 }
 
@@ -196,9 +224,7 @@ function playSuccessBeep() {
 }
 
 function setNoteLabels(amount) {
-  const values = [Math.ceil(amount / 3), Math.floor(amount / 3), amount - Math.ceil(amount / 3) - Math.floor(amount / 3)]
-    .filter((x) => x > 0);
-
+  const values = [Math.ceil(amount / 3), Math.floor(amount / 3), amount - Math.ceil(amount / 3) - Math.floor(amount / 3)].filter((x) => x > 0);
   const notes = Array.from(document.querySelectorAll("#cashStage .note"));
   notes.forEach((note, i) => {
     const fallback = values[values.length - 1] || amount;
@@ -213,7 +239,7 @@ function triggerCashAnimation(amount) {
   setNoteLabels(amount);
   stage.classList.remove("hidden", "active");
   void stage.offsetWidth;
-  setTimeout(() => stage.classList.add("active"), 180);
+  setTimeout(() => stage.classList.add("active"), 170);
 }
 
 function onPaymentReceived(payload) {
@@ -223,6 +249,7 @@ function onPaymentReceived(payload) {
     el("machineBalance").textContent = formatInr(payload.machine_balance);
   }
 
+  addTransaction(payload);
   triggerCashAnimation(amount);
   playSuccessBeep();
 }
@@ -255,6 +282,7 @@ function buildDispense() {
 
   connectSocket();
   loadBalances();
+  loadTransactions();
 }
 
 function updateContinueButton() {
@@ -266,8 +294,10 @@ function updateContinueButton() {
 function setReceiver(receiverId) {
   state.receiverId = receiverId;
   if (el("receiverText")) el("receiverText").textContent = receiverId;
-  revealScanPayFlow(true);
-  setActivePayStep("amount");
+  if (el("flowTitle")) el("flowTitle").textContent = `Pay To ${receiverId}`;
+
+  setFlowStep("amount");
+  openPayFlowModal();
   updateContinueButton();
 }
 
@@ -287,7 +317,7 @@ async function onScanSuccess(decodedText) {
     if (!parsed.receiver) throw new Error("Invalid QR");
 
     setReceiver(parsed.receiver);
-    setResult("QR scanned. Enter amount.", "success");
+    setResult("QR scanned successfully.", "success");
 
     if (state.html5QrCode && state.scannerRunning) {
       await state.html5QrCode.stop();
@@ -326,19 +356,14 @@ async function startScanner() {
   }
 
   try {
-    if (!state.cameraGranted) {
-      await ensureCameraPermission();
-    }
+    if (!state.cameraGranted) await ensureCameraPermission();
   } catch {
     setResult("Camera permission denied.", "error");
     openCameraHelpModal();
     return;
   }
 
-  if (!state.html5QrCode) {
-    state.html5QrCode = new Html5Qrcode("reader");
-  }
-
+  if (!state.html5QrCode) state.html5QrCode = new Html5Qrcode("reader");
   if (state.scannerRunning) {
     setResult("Scanner already running.", "muted");
     return;
@@ -375,25 +400,15 @@ function continueToPin() {
   }
 
   state.pendingAmount = amount;
-  setActivePayStep("pin");
+  setFlowStep("pin");
   setResult("Enter 6-digit PIN.", "muted");
-  el("pinInput")?.focus();
-}
-
-function showPulse(show) {
-  const pulse = el("paymentPulse");
-  if (!pulse) return;
-  pulse.classList.toggle("hidden", !show);
+  setTimeout(() => el("pinInput")?.focus(), 120);
 }
 
 function showSuccess(amount, receiverId) {
-  const card = el("successCard");
   const amountEl = el("successAmount");
-  if (!card || !amountEl) return;
-
-  amountEl.textContent = `${formatInr(amount)} sent to ${receiverId}`;
-  card.classList.remove("hidden");
-  setTimeout(() => card.classList.add("hidden"), 2500);
+  if (amountEl) amountEl.textContent = `${formatInr(amount)} sent to ${receiverId}`;
+  setFlowStep("success");
 }
 
 async function confirmPayment() {
@@ -418,8 +433,8 @@ async function confirmPayment() {
   }
 
   try {
-    showPulse(true);
-    await new Promise((resolve) => setTimeout(resolve, 1300));
+    setFlowStep("processing");
+    await new Promise((resolve) => setTimeout(resolve, 1450));
 
     const data = await fetchJson("/pay", {
       method: "POST",
@@ -434,17 +449,20 @@ async function confirmPayment() {
     setResult(`Payment successful: ${formatInr(data.amount)}`, "success");
     if (el("senderBalance")) el("senderBalance").textContent = formatInr(data.sender_balance);
 
+    addTransaction(data);
     showSuccess(data.amount, state.receiverId);
-    el("amountInput").value = "";
-    el("pinInput").value = "";
     state.pendingAmount = 0;
-    setActivePayStep("amount");
-    updateContinueButton();
   } catch (error) {
     setResult(error.message || "Payment failed", "error");
-  } finally {
-    showPulse(false);
+    setFlowStep("pin");
   }
+}
+
+function finishPaymentFlow() {
+  closePayFlowModal();
+  state.pendingAmount = 0;
+  if (el("amountInput")) el("amountInput").value = "";
+  if (el("pinInput")) el("pinInput").value = "";
 }
 
 let payInitialized = false;
@@ -461,18 +479,20 @@ function initPayControls() {
   el("startScanBtn")?.addEventListener("click", startScanner);
   el("useDemoReceiverBtn")?.addEventListener("click", () => {
     setReceiver(RECEIVER_ID);
-    setResult("Demo receiver selected. Enter amount.", "success");
+    setResult("Demo receiver selected.", "success");
   });
 
+  el("amountInput")?.addEventListener("input", updateContinueButton);
   el("continueToPinBtn")?.addEventListener("click", continueToPin);
   el("confirmPayBtn")?.addEventListener("click", confirmPayment);
-  el("amountInput")?.addEventListener("input", updateContinueButton);
+
+  el("donePayFlowBtn")?.addEventListener("click", finishPaymentFlow);
+  el("closePayFlowBtn")?.addEventListener("click", closePayFlowModal);
 
   el("retryPermissionBtn")?.addEventListener("click", requestCameraAccess);
   el("closeModalBtn")?.addEventListener("click", closeCameraHelpModal);
 
   togglePayMode("scan");
-  setActivePayStep("amount");
   loadBalances();
   payInitialized = true;
 }
@@ -485,16 +505,20 @@ function wireNavigation() {
   el("goDispenseBtn")?.addEventListener("click", () => setSection("dispenseSection"));
   el("goPayBtn")?.addEventListener("click", () => setSection("paySection"));
 
-  const modal = el("cameraHelpModal");
-  modal?.addEventListener("click", (event) => {
-    if (event.target === modal) {
-      closeCameraHelpModal();
-    }
+  const cameraModal = el("cameraHelpModal");
+  cameraModal?.addEventListener("click", (event) => {
+    if (event.target === cameraModal) closeCameraHelpModal();
+  });
+
+  const payModal = el("payFlowModal");
+  payModal?.addEventListener("click", (event) => {
+    if (event.target === payModal) closePayFlowModal();
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeCameraHelpModal();
+      closePayFlowModal();
     }
   });
 }

@@ -66,6 +66,13 @@
             <div class="cash-slot"></div>
             <div class="slot-glow"></div>
           </div>
+
+          <div class="tx-card">
+            <p class="tx-title">Transaction History</p>
+            <ul id="txList" class="tx-list">
+              <li class="muted">No transactions yet.</li>
+            </ul>
+          </div>
         </div>
       </div>
     </section>
@@ -102,38 +109,49 @@
         </div>
 
         <div class="card">
-          <h3>Payment Steps</h3>
+          <h3>Quick Status</h3>
           <p class="balance-row">Detected Receiver: <span id="receiverText">Not selected</span></p>
-
-          <div id="scanPayFlow" class="hidden">
-            <div class="pay-steps">
-              <div class="step-card active" id="amountStep">
-                <p class="step-title">Enter Amount</p>
-                <label for="amountInput" class="label">Amount (INR)</label>
-                <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
-                <button id="continueToPinBtn" class="primary-btn" type="button" disabled>Next</button>
-              </div>
-
-              <div class="step-card" id="pinStep">
-                <p class="step-title">Enter UPI PIN</p>
-                <label for="pinInput" class="label">6-digit PIN</label>
-                <input id="pinInput" class="text-input" type="password" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
-                <button id="confirmPayBtn" class="primary-btn" type="button">Pay Securely</button>
-              </div>
-            </div>
-          </div>
-
           <p id="paymentResult" class="result-text muted">Scan QR to begin payment flow.</p>
-          <div id="paymentPulse" class="payment-pulse hidden">Authenticating payment...</div>
-          <div id="successCard" class="success-card hidden">
-            <p class="success-title">Payment Completed</p>
-            <p id="successAmount" class="success-amount">&#8377;0 sent</p>
-          </div>
           <p class="balance-row">Your Balance: <span id="senderBalance">&#8377;1000</span></p>
         </div>
       </div>
     </section>
   </main>
+
+  <div id="payFlowModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card pay-flow-card">
+      <div class="flow-head">
+        <h3 id="flowTitle">Pay To machine_001</h3>
+        <button id="closePayFlowBtn" class="secondary-btn tiny-btn" type="button">Close</button>
+      </div>
+      <p class="muted flow-sub">Secure payment powered by Proxy Bank</p>
+
+      <div id="flowAmountStep" class="flow-step active">
+        <label for="amountInput" class="label">Enter Amount (INR)</label>
+        <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
+        <button id="continueToPinBtn" class="primary-btn" type="button" disabled>Next</button>
+      </div>
+
+      <div id="flowPinStep" class="flow-step">
+        <label for="pinInput" class="label">Enter UPI PIN</label>
+        <input id="pinInput" class="text-input" type="password" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit PIN" />
+        <button id="confirmPayBtn" class="primary-btn" type="button">Pay Securely</button>
+      </div>
+
+      <div id="flowProcessingStep" class="flow-step">
+        <div class="dramatic-loader"></div>
+        <p class="flow-big">Sending Money...</p>
+        <p class="muted">Please wait while we process your payment.</p>
+      </div>
+
+      <div id="flowSuccessStep" class="flow-step">
+        <div class="success-check">✓</div>
+        <p class="flow-big">Payment Successful</p>
+        <p id="successAmount" class="success-amount">&#8377;0 sent</p>
+        <button id="donePayFlowBtn" class="primary-btn" type="button">Done</button>
+      </div>
+    </div>
+  </div>
 
   <div id="cameraHelpModal" class="modal hidden" aria-hidden="true">
     <div class="modal-card">

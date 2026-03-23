@@ -1,4 +1,6 @@
 from pathlib import Path
+from datetime import datetime
+from collections import deque
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
@@ -15,6 +17,7 @@ accounts = {
     "user1": 1000,
     "machine_001": 0,
 }
+transactions = deque(maxlen=50)
 
 
 @app.get("/health")
@@ -25,6 +28,11 @@ def health_check():
 @app.get("/accounts")
 def get_accounts():
     return jsonify(accounts)
+
+
+@app.get("/transactions")
+def get_transactions():
+    return jsonify(list(transactions))
 
 
 @app.post("/pay")
@@ -55,27 +63,23 @@ def pay():
     accounts[sender] -= amount
     accounts[receiver] += amount
 
+    transaction = {
+        "id": len(transactions) + 1,
+        "amount": amount,
+        "from": sender,
+        "to": receiver,
+        "machine_balance": accounts[receiver],
+        "sender_balance": accounts[sender],
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+    }
+    transactions.appendleft(transaction)
+
     socketio.emit(
         "payment_received",
-        {
-            "amount": amount,
-            "from": sender,
-            "to": receiver,
-            "machine_balance": accounts[receiver],
-            "sender_balance": accounts[sender],
-        },
+        transaction,
     )
 
-    return jsonify(
-        {
-            "status": "success",
-            "amount": amount,
-            "from": sender,
-            "to": receiver,
-            "machine_balance": accounts[receiver],
-            "sender_balance": accounts[sender],
-        }
-    )
+    return jsonify({"status": "success", **transaction})
 
 
 @app.get("/")
