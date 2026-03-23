@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChillerMate | Pay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-screen="pay">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <main class="app-shell">
+    <header class="top-bar">
+      <h1>Pay Prototype</h1>
+      <a class="ghost-btn" href="./index.html">Go to Dispense Screen</a>
+    </header>
+
+    <section class="panel panel-grid">
+      <div class="card scanner-card">
+        <h2>Scan Machine QR</h2>
+        <p class="muted">Demo payer account: <strong>user1</strong></p>
+        <div id="reader" class="scanner-box"></div>
+        <button id="startScanBtn" class="primary-btn">Start Scanner</button>
+      </div>
+
+      <div class="card payment-card">
+        <h2>Payment</h2>
+        <p class="balance-row">Detected Receiver: <span id="receiverText">Not scanned</span></p>
+
+        <label for="amountInput" class="label">Amount (INR)</label>
+        <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
+
+        <button id="payBtn" class="primary-btn" disabled>Pay Now</button>
+        <p id="paymentResult" class="result-text muted">Scan a QR to continue.</p>
+        <p class="balance-row">Your Balance: <span id="senderBalance">?1000</span></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
