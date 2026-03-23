@@ -1,8 +1,12 @@
-from flask import Flask, jsonify, request
+from pathlib import Path
+
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
-app = Flask(__name__)
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 app.config["SECRET_KEY"] = "prototype-secret"
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -72,6 +76,19 @@ def pay():
             "sender_balance": accounts[sender],
         }
     )
+
+
+@app.get("/")
+def serve_index():
+    return send_from_directory(app.static_folder, "index.html")
+
+
+@app.get("/<path:path>")
+def serve_static(path: str):
+    static_path = Path(app.static_folder) / path
+    if static_path.exists() and static_path.is_file():
+        return send_from_directory(app.static_folder, path)
+    return send_from_directory(app.static_folder, "index.html")
 
 
 if __name__ == "__main__":

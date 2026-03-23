@@ -37,18 +37,11 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-### 2) Serve frontend
-
-```bash
-cd frontend
-python -m http.server 5500
-```
-
 ## Single Entry Point
 
 Open only:
 
-- `/index.html`
+- `/` (served by Flask on port 5000)
 
 Use top step tabs:
 
@@ -64,6 +57,16 @@ Use top step tabs:
 4. Scan laptop QR (or tap **Use Demo Receiver**).
 5. Enter amount and tap **Pay Now**.
 6. Laptop dispense section updates in realtime and plays note animation.
+
+## Ngrok (Recommended Demo Setup)
+
+Run one tunnel only:
+
+```bash
+ngrok http 5000
+```
+
+Open the ngrok URL directly. No separate frontend tunnel needed.
 
 ## Auto Backend Connection
 
