@@ -17,21 +17,35 @@ const state = {
   pendingAmount: 0,
   socket: null,
   qrBuilt: false,
-  recentPayments: [],
 };
+
+function el(id) {
+  return document.getElementById(id);
+}
 
 function formatInr(amount) {
   return `${RUPEE}${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
-function setResult(el, msg, cls = "muted") {
-  if (!el) return;
-  el.textContent = msg;
-  el.className = `result-text ${cls}`;
+function setResult(msg, cls = "muted") {
+  const target = el("paymentResult");
+  if (!target) return;
+  target.textContent = msg;
+  target.className = `result-text ${cls}`;
 }
 
-function getById(id) {
-  return document.getElementById(id);
+function openCameraHelpModal() {
+  const modal = el("cameraHelpModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeCameraHelpModal() {
+  const modal = el("cameraHelpModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
 }
 
 function setSection(targetId) {
@@ -58,34 +72,31 @@ function setSection(targetId) {
 }
 
 function setActivePayStep(step) {
-  getById("amountStep")?.classList.toggle("active", step === "amount");
-  getById("pinStep")?.classList.toggle("active", step === "pin");
-  updateProgress(step);
+  el("amountStep")?.classList.toggle("active", step === "amount");
+  el("pinStep")?.classList.toggle("active", step === "pin");
 }
 
-function updateProgress(step = "receiver") {
-  const order = ["receiver", "amount", "pin", "done"];
-  const targetIdx = order.indexOf(step);
-  const dots = {
-    receiver: getById("dotReceiver"),
-    amount: getById("dotAmount"),
-    pin: getById("dotPin"),
-    done: getById("dotDone"),
-  };
+function revealScanPayFlow(show) {
+  el("scanPayFlow")?.classList.toggle("hidden", !show);
+}
 
-  order.forEach((key, idx) => {
-    dots[key]?.classList.toggle("active", idx <= targetIdx && targetIdx >= 0);
-  });
+function resetPaySteps() {
+  state.pendingAmount = 0;
+  el("amountInput").value = "";
+  el("pinInput").value = "";
+  setActivePayStep("amount");
+  revealScanPayFlow(false);
+  el("continueToPinBtn").disabled = true;
+  el("successCard")?.classList.add("hidden");
 }
 
 function togglePayMode(mode) {
   state.payMode = mode;
 
-  getById("modeScanBtn")?.classList.toggle("active", mode === "scan");
-  getById("modeDemoBtn")?.classList.toggle("active", mode === "demo");
-
-  getById("scanModeWrap")?.classList.toggle("hidden", mode !== "scan");
-  getById("demoModeWrap")?.classList.toggle("hidden", mode !== "demo");
+  el("modeScanBtn")?.classList.toggle("active", mode === "scan");
+  el("modeDemoBtn")?.classList.toggle("active", mode === "demo");
+  el("scanModeWrap")?.classList.toggle("hidden", mode !== "scan");
+  el("demoModeWrap")?.classList.toggle("hidden", mode !== "demo");
 
   if (mode !== "scan" && state.html5QrCode && state.scannerRunning) {
     state.html5QrCode.stop().catch(() => {});
@@ -94,18 +105,14 @@ function togglePayMode(mode) {
 
   if (mode === "demo") {
     setReceiver(RECEIVER_ID);
-    setResult(getById("paymentResult"), "Demo receiver selected. Enter amount.", "muted");
+    revealScanPayFlow(true);
+    setResult("Demo receiver selected. Enter amount.", "muted");
   } else {
     state.receiverId = null;
-    getById("receiverText").textContent = "Not selected";
-    setResult(getById("paymentResult"), "Scan QR code to continue.", "muted");
-    updateProgress("receiver");
-    updateContinueButton();
+    el("receiverText").textContent = "Not selected";
+    setResult("Scan QR to begin payment flow.", "muted");
+    resetPaySteps();
   }
-
-  setActivePayStep("amount");
-  getById("pinInput").value = "";
-  state.pendingAmount = 0;
 }
 
 async function tryHealth(baseUrl) {
@@ -118,7 +125,7 @@ async function tryHealth(baseUrl) {
 }
 
 async function autoConnectBackend() {
-  const status = getById("autoConnectStatus");
+  const status = el("autoConnectStatus");
 
   for (const raw of BACKEND_CANDIDATES) {
     const url = String(raw).replace(/\/$/, "");
@@ -146,19 +153,19 @@ async function fetchJson(path, options = {}) {
 
   const res = await fetch(`${state.backendUrl}${path}`, options);
   const data = await res.json();
+
   if (!res.ok) {
     throw new Error(data?.message || "Request failed");
   }
+
   return data;
 }
 
 async function loadBalances() {
   try {
     const data = await fetchJson("/accounts");
-    const sender = getById("senderBalance");
-    const machine = getById("machineBalance");
-    if (sender) sender.textContent = formatInr(data.user1);
-    if (machine) machine.textContent = formatInr(data.machine_001);
+    if (el("senderBalance")) el("senderBalance").textContent = formatInr(data.user1);
+    if (el("machineBalance")) el("machineBalance").textContent = formatInr(data.machine_001);
   } catch {}
 }
 
@@ -190,7 +197,7 @@ function setNoteLabels(amount) {
 }
 
 function triggerCashAnimation(amount) {
-  const stage = getById("cashStage");
+  const stage = el("cashStage");
   if (!stage) return;
 
   setNoteLabels(amount);
@@ -201,12 +208,9 @@ function triggerCashAnimation(amount) {
 
 function onPaymentReceived(payload) {
   const amount = Number(payload.amount || 0);
-  const status = getById("statusText");
-  const machine = getById("machineBalance");
-
-  if (status) status.textContent = `${formatInr(amount)} received`;
-  if (machine && typeof payload.machine_balance === "number") {
-    machine.textContent = formatInr(payload.machine_balance);
+  if (el("statusText")) el("statusText").textContent = `${formatInr(amount)} received`;
+  if (el("machineBalance") && typeof payload.machine_balance === "number") {
+    el("machineBalance").textContent = formatInr(payload.machine_balance);
   }
 
   triggerCashAnimation(amount);
@@ -219,21 +223,20 @@ function connectSocket() {
   state.socket = io(state.backendUrl, { transports: ["websocket", "polling"] });
   state.socket.on("payment_received", onPaymentReceived);
   state.socket.on("connect_error", () => {
-    const status = getById("statusText");
-    if (status) status.textContent = "Realtime link unavailable.";
+    if (el("statusText")) el("statusText").textContent = "Realtime link unavailable.";
   });
 }
 
 function buildDispense() {
   if (!state.qrBuilt) {
-    const qr = getById("qrcode");
+    const qr = el("qrcode");
     if (qr) {
       new QRCode(qr, {
         text: JSON.stringify({ receiver: RECEIVER_ID }),
         width: 220,
         height: 220,
-        colorDark: "#261b13",
-        colorLight: "#fffdf8",
+        colorDark: "#1f2937",
+        colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.H,
       });
       state.qrBuilt = true;
@@ -245,20 +248,17 @@ function buildDispense() {
 }
 
 function updateContinueButton() {
-  const continueBtn = getById("continueToPinBtn");
-  const amount = Number(getById("amountInput")?.value || 0);
-  if (continueBtn) {
-    continueBtn.disabled = !state.receiverId || amount <= 0;
-  }
+  const amount = Number(el("amountInput")?.value || 0);
+  const btn = el("continueToPinBtn");
+  if (btn) btn.disabled = !state.receiverId || amount <= 0;
 }
 
 function setReceiver(receiverId) {
   state.receiverId = receiverId;
-  const receiverText = getById("receiverText");
-  if (receiverText) receiverText.textContent = receiverId;
-
+  if (el("receiverText")) el("receiverText").textContent = receiverId;
+  revealScanPayFlow(true);
+  setActivePayStep("amount");
   updateContinueButton();
-  updateProgress("amount");
 }
 
 async function ensureCameraPermission() {
@@ -274,46 +274,46 @@ async function ensureCameraPermission() {
 async function onScanSuccess(decodedText) {
   try {
     const parsed = JSON.parse(decodedText);
-    if (!parsed.receiver) throw new Error("Invalid qr");
+    if (!parsed.receiver) throw new Error("Invalid QR");
 
     setReceiver(parsed.receiver);
-    setResult(getById("paymentResult"), "QR scanned. Enter amount and continue.", "success");
+    setResult("QR scanned. Enter amount.", "success");
 
     if (state.html5QrCode && state.scannerRunning) {
       await state.html5QrCode.stop();
       state.scannerRunning = false;
     }
   } catch {
-    setResult(getById("paymentResult"), "Invalid QR data", "error");
+    setResult("Invalid QR data", "error");
   }
 }
 
 async function requestCameraAccess() {
-  const result = getById("paymentResult");
-
   if (!window.isSecureContext) {
-    setResult(result, "Camera needs secure context (HTTPS).", "error");
+    setResult("Camera needs secure context (HTTPS).", "error");
+    openCameraHelpModal();
     return;
   }
 
   try {
     await ensureCameraPermission();
-    setResult(result, "Camera permission granted. Start scanner.", "success");
+    closeCameraHelpModal();
+    setResult("Camera permission granted. Start scanner.", "success");
   } catch {
-    setResult(result, "Camera permission denied. Enable it in browser settings.", "error");
+    setResult("Camera permission denied.", "error");
+    openCameraHelpModal();
   }
 }
 
 async function startScanner() {
-  const result = getById("paymentResult");
-
   if (!state.backendUrl) {
-    setResult(result, "Backend unavailable. Refresh after server starts.", "error");
+    setResult("Backend unavailable. Refresh after server starts.", "error");
     return;
   }
 
   if (!window.isSecureContext) {
-    setResult(result, "Camera needs secure context (HTTPS).", "error");
+    setResult("Camera needs secure context (HTTPS).", "error");
+    openCameraHelpModal();
     return;
   }
 
@@ -322,7 +322,8 @@ async function startScanner() {
       await ensureCameraPermission();
     }
   } catch {
-    setResult(result, "Allow camera permission first.", "error");
+    setResult("Camera permission denied.", "error");
+    openCameraHelpModal();
     return;
   }
 
@@ -331,112 +332,87 @@ async function startScanner() {
   }
 
   if (state.scannerRunning) {
-    setResult(result, "Scanner already running.", "muted");
+    setResult("Scanner already running.", "muted");
     return;
   }
 
   try {
     const cameras = await Html5Qrcode.getCameras();
     const rear = cameras.find((cam) => /back|rear|environment/i.test(cam.label || ""));
-    const preferredCameraId = (rear || cameras[0])?.id;
+    const preferredId = (rear || cameras[0])?.id;
 
-    if (!preferredCameraId) {
-      setResult(result, "No camera found on this device.", "error");
+    if (!preferredId) {
+      setResult("No camera found.", "error");
       return;
     }
 
-    await state.html5QrCode.start(
-      preferredCameraId,
-      { fps: 10, qrbox: 220 },
-      onScanSuccess,
-      () => {}
-    );
-
+    await state.html5QrCode.start(preferredId, { fps: 10, qrbox: 220 }, onScanSuccess, () => {});
     state.scannerRunning = true;
-    setResult(result, "Scanner active. Point camera at QR.", "muted");
+    setResult("Scanner active. Point at QR.", "muted");
   } catch {
-    setResult(result, "Camera unavailable. Use Demo Mode instead.", "error");
+    setResult("Camera unavailable. Use Demo Mode.", "error");
   }
 }
 
 function continueToPin() {
-  const result = getById("paymentResult");
-  const amount = Number(getById("amountInput")?.value || 0);
-
+  const amount = Number(el("amountInput")?.value || 0);
   if (!state.receiverId) {
-    setResult(result, "Select a receiver first.", "error");
+    setResult("Scan receiver QR first.", "error");
     return;
   }
 
   if (!amount || amount <= 0) {
-    setResult(result, "Enter valid amount.", "error");
+    setResult("Enter valid amount.", "error");
     return;
   }
 
   state.pendingAmount = amount;
   setActivePayStep("pin");
-  updateProgress("pin");
-  setResult(result, "Enter 6-digit PIN to confirm payment.", "muted");
-  getById("pinInput")?.focus();
+  setResult("Enter 6-digit PIN.", "muted");
+  el("pinInput")?.focus();
 }
 
 function showPulse(show) {
-  const pulse = getById("paymentPulse");
+  const pulse = el("paymentPulse");
   if (!pulse) return;
   pulse.classList.toggle("hidden", !show);
 }
 
 function showSuccess(amount, receiverId) {
-  const card = getById("successCard");
-  const text = getById("successAmount");
-  if (!card || !text) return;
+  const card = el("successCard");
+  const amountEl = el("successAmount");
+  if (!card || !amountEl) return;
 
-  text.textContent = `${formatInr(amount)} sent to ${receiverId}`;
+  amountEl.textContent = `${formatInr(amount)} sent to ${receiverId}`;
   card.classList.remove("hidden");
-  setTimeout(() => card.classList.add("hidden"), 2400);
-}
-
-function renderRecentPayments() {
-  const list = getById("recentList");
-  if (!list) return;
-
-  list.innerHTML = "";
-  if (state.recentPayments.length === 0) {
-    list.innerHTML = "<li class=\"muted\">No payments yet.</li>";
-    return;
-  }
-
-  state.recentPayments.slice(0, 5).forEach((entry) => {
-    const li = document.createElement("li");
-    li.textContent = `${entry.time} - ${formatInr(entry.amount)} to ${entry.to}`;
-    list.appendChild(li);
-  });
+  setTimeout(() => card.classList.add("hidden"), 2500);
 }
 
 async function confirmPayment() {
-  const pinInput = getById("pinInput");
+  const pinInput = el("pinInput");
   const pin = pinInput?.value?.trim() || "";
-  const result = getById("paymentResult");
 
   if (pin.length !== 6) {
-    setResult(result, "PIN must be 6 digits.", "error");
+    setResult("PIN must be 6 digits.", "error");
     return;
   }
 
   if (pin !== DEMO_PIN) {
     pinInput?.classList.add("shake");
     setTimeout(() => pinInput?.classList.remove("shake"), 350);
-    setResult(result, "Incorrect PIN. Use 123456 for prototype.", "error");
+    setResult("Incorrect PIN. Use 123456.", "error");
     return;
   }
 
   if (!state.pendingAmount || !state.receiverId) {
-    setResult(result, "Payment details missing.", "error");
+    setResult("Payment details missing.", "error");
     return;
   }
 
   try {
     showPulse(true);
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+
     const data = await fetchJson("/pay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -447,27 +423,17 @@ async function confirmPayment() {
       }),
     });
 
-    setResult(result, `Payment successful: ${formatInr(data.amount)}`, "success");
-    const sender = getById("senderBalance");
-    if (sender) sender.textContent = formatInr(data.sender_balance);
+    setResult(`Payment successful: ${formatInr(data.amount)}`, "success");
+    if (el("senderBalance")) el("senderBalance").textContent = formatInr(data.sender_balance);
 
-    getById("amountInput").value = "";
-    getById("pinInput").value = "";
     showSuccess(data.amount, state.receiverId);
-    updateProgress("done");
-
-    state.recentPayments.unshift({
-      amount: data.amount,
-      to: state.receiverId,
-      time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-    });
-    renderRecentPayments();
-
+    el("amountInput").value = "";
+    el("pinInput").value = "";
     state.pendingAmount = 0;
     setActivePayStep("amount");
     updateContinueButton();
   } catch (error) {
-    setResult(result, error.message || "Payment failed", "error");
+    setResult(error.message || "Payment failed", "error");
   } finally {
     showPulse(false);
   }
@@ -480,23 +446,25 @@ function initPayControls() {
     return;
   }
 
-  getById("modeScanBtn")?.addEventListener("click", () => togglePayMode("scan"));
-  getById("modeDemoBtn")?.addEventListener("click", () => togglePayMode("demo"));
+  el("modeScanBtn")?.addEventListener("click", () => togglePayMode("scan"));
+  el("modeDemoBtn")?.addEventListener("click", () => togglePayMode("demo"));
 
-  getById("requestCamBtn")?.addEventListener("click", requestCameraAccess);
-  getById("startScanBtn")?.addEventListener("click", startScanner);
-  getById("useDemoReceiverBtn")?.addEventListener("click", () => {
+  el("requestCamBtn")?.addEventListener("click", requestCameraAccess);
+  el("startScanBtn")?.addEventListener("click", startScanner);
+  el("useDemoReceiverBtn")?.addEventListener("click", () => {
     setReceiver(RECEIVER_ID);
-    setResult(getById("paymentResult"), "Demo receiver selected. Enter amount.", "success");
+    setResult("Demo receiver selected. Enter amount.", "success");
   });
 
-  getById("amountInput")?.addEventListener("input", updateContinueButton);
-  getById("continueToPinBtn")?.addEventListener("click", continueToPin);
-  getById("confirmPayBtn")?.addEventListener("click", confirmPayment);
+  el("continueToPinBtn")?.addEventListener("click", continueToPin);
+  el("confirmPayBtn")?.addEventListener("click", confirmPayment);
+  el("amountInput")?.addEventListener("input", updateContinueButton);
+
+  el("retryPermissionBtn")?.addEventListener("click", requestCameraAccess);
+  el("closeModalBtn")?.addEventListener("click", closeCameraHelpModal);
 
   togglePayMode("scan");
-  updateProgress("receiver");
-  renderRecentPayments();
+  setActivePayStep("amount");
   loadBalances();
   payInitialized = true;
 }
@@ -506,8 +474,8 @@ function wireNavigation() {
     tab.addEventListener("click", () => setSection(tab.dataset.target));
   });
 
-  getById("goDispenseBtn")?.addEventListener("click", () => setSection("dispenseSection"));
-  getById("goPayBtn")?.addEventListener("click", () => setSection("paySection"));
+  el("goDispenseBtn")?.addEventListener("click", () => setSection("dispenseSection"));
+  el("goPayBtn")?.addEventListener("click", () => setSection("paySection"));
 }
 
 (async function init() {

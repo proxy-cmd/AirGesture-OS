@@ -19,7 +19,7 @@
         <div class="crest">PB</div>
         <div>
           <p class="bank-title">Proxy Bank</p>
-          <p class="bank-sub">QR Cash Dispenser Prototype</p>
+          <p class="bank-sub">Realtime QR Cash Prototype</p>
         </div>
       </div>
       <div class="step-tabs" role="tablist" aria-label="Prototype Sections">
@@ -33,7 +33,7 @@
       <p class="pill">Simple 2-Device Demo</p>
       <h1>Virtual QR To Cash Flow</h1>
       <p class="lead">
-        Open this same page on both devices. On laptop use <strong>Dispense</strong>, on phone use <strong>Pay</strong>. Payment triggers realtime dispense status and animation.
+        Open this same page on both devices. Laptop: <strong>Dispense</strong>. Phone: <strong>Pay</strong>. Payment done in pay flow instantly updates dispense logs and animation.
       </p>
       <div class="status-pill" id="autoConnectStatus">Auto-connecting backend...</div>
       <div class="home-actions">
@@ -45,7 +45,7 @@
     <section id="dispenseSection" class="panel section">
       <div class="section-head">
         <h2>Dispense Console</h2>
-        <p class="muted">Show this QR on laptop screen.</p>
+        <p class="muted">Keep this open on laptop for scanning.</p>
       </div>
       <div class="panel-grid">
         <div class="card">
@@ -55,7 +55,7 @@
         </div>
 
         <div class="card">
-          <h3>Machine Status</h3>
+          <h3>Dispense Status</h3>
           <p id="statusText" class="status-text">Waiting for payment...</p>
           <p class="balance-row">Machine Balance: <span id="machineBalance">&#8377;0</span></p>
 
@@ -73,75 +73,83 @@
     <section id="paySection" class="panel section">
       <div class="section-head">
         <h2>Pay Console</h2>
-        <p class="muted">Use this on phone to scan laptop QR.</p>
+        <p class="muted">Phone-friendly payment flow.</p>
       </div>
+
       <div class="pay-mode-switch">
-        <button id="modeScanBtn" class="secondary-btn mode-btn active" type="button">Scan QR Code</button>
+        <button id="modeScanBtn" class="secondary-btn mode-btn active" type="button">Scan QR</button>
         <button id="modeDemoBtn" class="secondary-btn mode-btn" type="button">Demo Mode</button>
       </div>
+
       <div class="panel-grid">
         <div class="card">
-          <h3>Receiver Detection</h3>
-          <p class="muted">Payer account: <strong>user1</strong></p>
+          <h3>Scan Receiver QR</h3>
           <div id="scanModeWrap">
             <div id="reader" class="scanner-box"></div>
             <div class="scanner-actions">
               <button id="requestCamBtn" class="secondary-btn" type="button">Enable Camera Access</button>
-              <button id="startScanBtn" class="primary-btn" type="button">Start Camera Scanner</button>
+              <button id="startScanBtn" class="primary-btn" type="button">Start Scanner</button>
             </div>
+            <p class="muted help-text">After scan, amount and PIN steps will appear automatically.</p>
           </div>
+
           <div id="demoModeWrap" class="hidden">
             <div class="demo-box">
-              <p class="muted">Skip camera and use default receiver for quick demo.</p>
+              <p class="muted">Use this for quick testing without camera.</p>
               <button id="useDemoReceiverBtn" class="secondary-btn" type="button">Use Demo Receiver</button>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <h3>Payment Flow</h3>
+          <h3>Payment Steps</h3>
           <p class="balance-row">Detected Receiver: <span id="receiverText">Not selected</span></p>
-          <div class="mini-progress" id="miniProgress">
-            <span class="progress-dot active" id="dotReceiver">Receiver</span>
-            <span class="progress-dot" id="dotAmount">Amount</span>
-            <span class="progress-dot" id="dotPin">PIN</span>
-            <span class="progress-dot" id="dotDone">Done</span>
-          </div>
 
-          <div class="pay-steps">
-            <div class="step-card active" id="amountStep">
-              <p class="step-title">Step 1: Enter Amount</p>
-              <label for="amountInput" class="label">Amount (INR)</label>
-              <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
-              <button id="continueToPinBtn" class="primary-btn" type="button" disabled>Continue</button>
-            </div>
+          <div id="scanPayFlow" class="hidden">
+            <div class="pay-steps">
+              <div class="step-card active" id="amountStep">
+                <p class="step-title">Enter Amount</p>
+                <label for="amountInput" class="label">Amount (INR)</label>
+                <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
+                <button id="continueToPinBtn" class="primary-btn" type="button" disabled>Next</button>
+              </div>
 
-            <div class="step-card" id="pinStep">
-              <p class="step-title">Step 2: Enter UPI PIN</p>
-              <label for="pinInput" class="label">6-digit PIN</label>
-              <input id="pinInput" class="text-input" type="password" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
-              <button id="confirmPayBtn" class="primary-btn" type="button">Pay Securely</button>
+              <div class="step-card" id="pinStep">
+                <p class="step-title">Enter UPI PIN</p>
+                <label for="pinInput" class="label">6-digit PIN</label>
+                <input id="pinInput" class="text-input" type="password" inputmode="numeric" maxlength="6" placeholder="Enter PIN" />
+                <button id="confirmPayBtn" class="primary-btn" type="button">Pay Securely</button>
+              </div>
             </div>
           </div>
 
-          <p id="paymentResult" class="result-text muted">Choose scan or demo mode to begin.</p>
-          <div id="paymentPulse" class="payment-pulse hidden">Processing payment...</div>
+          <p id="paymentResult" class="result-text muted">Scan QR to begin payment flow.</p>
+          <div id="paymentPulse" class="payment-pulse hidden">Authenticating payment...</div>
           <div id="successCard" class="success-card hidden">
             <p class="success-title">Payment Completed</p>
-            <p id="successAmount" class="success-amount">&#8377;0 sent to machine_001</p>
+            <p id="successAmount" class="success-amount">&#8377;0 sent</p>
           </div>
           <p class="balance-row">Your Balance: <span id="senderBalance">&#8377;1000</span></p>
-
-          <div class="recent-box">
-            <p class="recent-title">Recent Payments</p>
-            <ul id="recentList" class="recent-list">
-              <li class="muted">No payments yet.</li>
-            </ul>
-          </div>
         </div>
       </div>
     </section>
   </main>
+
+  <div id="cameraHelpModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card">
+      <h3>Camera Permission Needed</h3>
+      <p class="muted">Allow camera access to scan QR quickly.</p>
+      <ol class="modal-list">
+        <li>Tap browser lock icon in address bar.</li>
+        <li>Set Camera to Allow.</li>
+        <li>Tap Try Again below.</li>
+      </ol>
+      <div class="modal-actions">
+        <button id="retryPermissionBtn" class="primary-btn" type="button">Try Again</button>
+        <button id="closeModalBtn" class="secondary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
