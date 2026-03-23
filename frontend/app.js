@@ -17,6 +17,7 @@ const state = {
   pendingAmount: 0,
   socket: null,
   qrBuilt: false,
+  activeSection: "homeSection",
 };
 
 function el(id) {
@@ -35,6 +36,10 @@ function setResult(msg, cls = "muted") {
 }
 
 function openCameraHelpModal() {
+  if (state.activeSection !== "paySection" || state.payMode !== "scan") {
+    return;
+  }
+
   const modal = el("cameraHelpModal");
   if (!modal) return;
   modal.classList.remove("hidden");
@@ -57,10 +62,15 @@ function setSection(targetId) {
   document.querySelectorAll(".section").forEach((section) => {
     section.classList.toggle("active", section.id === targetId);
   });
+  state.activeSection = targetId;
 
   document.querySelectorAll(".step-tab").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.target === targetId);
   });
+
+  if (targetId !== "paySection") {
+    closeCameraHelpModal();
+  }
 
   if (targetId === "dispenseSection") {
     buildDispense();
@@ -291,7 +301,6 @@ async function onScanSuccess(decodedText) {
 async function requestCameraAccess() {
   if (!window.isSecureContext) {
     setResult("Camera needs secure context (HTTPS).", "error");
-    openCameraHelpModal();
     return;
   }
 
@@ -301,7 +310,6 @@ async function requestCameraAccess() {
     setResult("Camera permission granted. Start scanner.", "success");
   } catch {
     setResult("Camera permission denied.", "error");
-    openCameraHelpModal();
   }
 }
 
@@ -476,6 +484,19 @@ function wireNavigation() {
 
   el("goDispenseBtn")?.addEventListener("click", () => setSection("dispenseSection"));
   el("goPayBtn")?.addEventListener("click", () => setSection("paySection"));
+
+  const modal = el("cameraHelpModal");
+  modal?.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeCameraHelpModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCameraHelpModal();
+    }
+  });
 }
 
 (async function init() {
