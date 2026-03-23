@@ -3,49 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Astera Bank | Prototype Gateway</title>
+  <title>Proxy Bank | QR Cash Prototype</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body data-screen="home">
+<body>
   <div class="bg-cream"></div>
   <div class="grain"></div>
 
-  <main class="app-shell home-shell">
-    <header class="brand-head reveal-up">
-      <div class="crest">AB</div>
-      <div>
-        <p class="bank-title">Astera Bank</p>
-        <p class="bank-sub">Prototype Exchange Studio</p>
+  <main class="app-shell">
+    <header class="top-head reveal-up">
+      <div class="brand-inline">
+        <div class="crest">PB</div>
+        <div>
+          <p class="bank-title">Proxy Bank</p>
+          <p class="bank-sub">QR Cash Dispenser Prototype</p>
+        </div>
+      </div>
+      <div class="step-tabs" role="tablist" aria-label="Prototype Sections">
+        <button class="step-tab active" data-target="homeSection" type="button">1. Intro</button>
+        <button class="step-tab" data-target="dispenseSection" type="button">2. Dispense</button>
+        <button class="step-tab" data-target="paySection" type="button">3. Pay</button>
       </div>
     </header>
 
-    <section class="panel home-panel reveal-up delay-1">
-      <p class="pill">Instant Demo Flow</p>
-      <h1>Virtual QR To Cash Dispense</h1>
+    <section id="homeSection" class="panel section active reveal-up delay-1">
+      <p class="pill">Simple 2-Device Demo</p>
+      <h1>Virtual QR To Cash Flow</h1>
       <p class="lead">
-        Run this same site on two devices. Open <strong>Pay</strong> on phone and <strong>Dispense</strong> on laptop for live payment confirmation with cash animation.
+        Open this same page on both devices. On laptop use <strong>Dispense</strong>, on phone use <strong>Pay</strong>. Payment triggers realtime dispense status and animation.
       </p>
-
+      <div class="status-pill" id="autoConnectStatus">Auto-connecting backend...</div>
       <div class="home-actions">
-        <a class="primary-btn home-btn" href="./pay.html">Open Pay Mode</a>
-        <a class="secondary-btn home-btn" href="./dispense.html">Open Dispense Mode</a>
+        <button class="primary-btn home-btn" id="goDispenseBtn" type="button">Go To Dispense</button>
+        <button class="secondary-btn home-btn" id="goPayBtn" type="button">Go To Pay</button>
       </div>
+    </section>
 
-      <div class="card backend-card">
-        <h2>Connect Backend</h2>
-        <p class="muted">Save once in this browser and both modes will use it automatically.</p>
+    <section id="dispenseSection" class="panel section">
+      <div class="section-head">
+        <h2>Dispense Console</h2>
+        <p class="muted">Show this QR on laptop screen.</p>
+      </div>
+      <div class="panel-grid">
+        <div class="card">
+          <h3>Scan To Pay</h3>
+          <p class="muted">Receiver ID: <span id="receiverId">machine_001</span></p>
+          <div id="qrcode" class="qr-box" aria-label="Payment QR"></div>
+        </div>
 
-        <label for="backendUrlInput" class="label">Realtime API URL</label>
-        <input id="backendUrlInput" class="text-input" type="url" placeholder="https://your-backend-domain.example" />
-        <button id="saveBackendBtn" class="primary-btn">Save Endpoint</button>
-        <p id="backendSaveResult" class="result-text muted">No endpoint saved yet.</p>
+        <div class="card">
+          <h3>Machine Status</h3>
+          <p id="statusText" class="status-text">Waiting for payment...</p>
+          <p class="balance-row">Machine Balance: <span id="machineBalance">&#8377;0</span></p>
+
+          <div id="cashStage" class="cash-stage hidden" aria-hidden="true">
+            <div class="note note-a">&#8377;10</div>
+            <div class="note note-b">&#8377;10</div>
+            <div class="note note-c">&#8377;20</div>
+            <div class="cash-slot"></div>
+            <div class="slot-glow"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="paySection" class="panel section">
+      <div class="section-head">
+        <h2>Pay Console</h2>
+        <p class="muted">Use this on phone to scan laptop QR.</p>
+      </div>
+      <div class="panel-grid">
+        <div class="card">
+          <h3>QR Scanner</h3>
+          <p class="muted">Payer account: <strong>user1</strong></p>
+          <div id="reader" class="scanner-box"></div>
+          <div class="scanner-actions">
+            <button id="startScanBtn" class="primary-btn" type="button">Start Camera Scanner</button>
+            <button id="useDemoReceiverBtn" class="secondary-btn" type="button">Use Demo Receiver</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Payment</h3>
+          <p class="balance-row">Detected Receiver: <span id="receiverText">Not selected</span></p>
+
+          <label for="amountInput" class="label">Amount (INR)</label>
+          <input id="amountInput" class="text-input" type="number" min="1" step="1" placeholder="Enter amount" />
+
+          <button id="payBtn" class="primary-btn" type="button" disabled>Pay Now</button>
+          <p id="paymentResult" class="result-text muted">Scan QR or choose demo receiver.</p>
+          <p class="balance-row">Your Balance: <span id="senderBalance">&#8377;1000</span></p>
+        </div>
       </div>
     </section>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

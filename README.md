@@ -1,11 +1,10 @@
 # ChillerMate - Virtual QR Payment to Cash Dispense Prototype
 
-A realtime prototype that simulates this flow:
+A realtime prototype where one page supports the complete flow:
 
-1. Dispense mode shows a QR with receiver `machine_001`.
-2. Pay mode scans that QR and sends a dummy transfer from `user1`.
-3. Backend validates balance and emits a realtime socket event.
-4. Dispense mode instantly shows `\u20B9XX received` and plays cash-note animation.
+1. Intro step explains the 2-device demo.
+2. Dispense step shows QR for `machine_001`.
+3. Pay step scans that QR (or uses demo receiver), sends payment, and triggers realtime dispense animation.
 
 ## Tech Stack
 
@@ -21,9 +20,7 @@ project-root/
 |  |- app.py
 |  |- requirements.txt
 |- frontend/
-|  |- index.html      (role select)
-|  |- pay.html        (pay mode)
-|  |- dispense.html   (dispense mode)
+|  |- index.html
 |  |- styles.css
 |  |- app.js
 |  |- assets/
@@ -47,21 +44,36 @@ cd frontend
 python -m http.server 5500
 ```
 
-## Demo Routes
+## Single Entry Point
 
-- Role select: `/index.html`
-- Dispense mode: `/dispense.html`
-- Pay mode: `/pay.html`
+Open only:
 
-## Best Demo Setup (Phone + Laptop)
+- `/index.html`
 
-1. Open role select on both devices.
-2. Save your deployed backend URL in **Connect Backend**.
-3. On laptop, open **Dispense Mode**.
-4. On phone, open **Pay Mode**.
-5. On phone, tap **Start Scanner** and scan laptop QR.
-6. Enter amount and tap **Pay Now**.
-7. Laptop updates in realtime with note animation.
+Use top step tabs:
+
+- `1. Intro`
+- `2. Dispense`
+- `3. Pay`
+
+## Demo Flow (Phone + Laptop)
+
+1. Open same page (`index.html`) on both devices.
+2. Laptop: switch to **Dispense** tab and keep QR visible.
+3. Phone: switch to **Pay** tab and tap **Start Camera Scanner**.
+4. Scan laptop QR (or tap **Use Demo Receiver**).
+5. Enter amount and tap **Pay Now**.
+6. Laptop dispense section updates in realtime and plays note animation.
+
+## Auto Backend Connection
+
+Frontend auto-tries these endpoints in order:
+
+1. `window.__PROXY_BANK_API` (if set by developer)
+2. current site origin
+3. local fallback endpoints
+
+If backend is not reachable, UI shows a clear status message.
 
 ## Dummy Accounts
 
@@ -69,8 +81,6 @@ From backend `app.py`:
 
 - `user1`: 1000
 - `machine_001`: 0
-
-You can edit these balances directly in code.
 
 ## API
 
@@ -102,5 +112,5 @@ Response:
 ## Notes
 
 - No real bank, no real UPI, no external payment gateways.
-- Pure prototype flow for demo purposes.
-- Socket event used: `payment_received`.
+- Pure prototype flow for demo use.
+- Realtime socket event: `payment_received`.
