@@ -1,4 +1,5 @@
-const BACKEND_URL = "http://localhost:5000";
+const DEFAULT_BACKEND_URL = "http://localhost:5000";
+const RUPEE = "\u20B9";
 
 const state = {
   receiverId: null,
@@ -6,12 +7,16 @@ const state = {
   scannerRunning: false,
 };
 
+function getBackendUrl() {
+  return localStorage.getItem("backend_url") || DEFAULT_BACKEND_URL;
+}
+
 function formatInr(amount) {
-  return `?${Number(amount || 0).toLocaleString("en-IN")}`;
+  return `${RUPEE}${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
 function connectSocket() {
-  const socket = io(BACKEND_URL);
+  const socket = io(getBackendUrl());
 
   socket.on("connect", () => {
     console.log("Socket connected");
@@ -95,7 +100,7 @@ async function sendPayment() {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/pay`, {
+    const response = await fetch(`${getBackendUrl()}/pay`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -200,7 +205,7 @@ async function startScanner() {
     paymentResult.textContent = "Scanner active. Point camera at QR.";
     paymentResult.className = "result-text muted";
   } catch (error) {
-    paymentResult.textContent = "Camera not available. Try desktop browser permissions.";
+    paymentResult.textContent = "Camera not available. Try browser permissions.";
     paymentResult.className = "result-text error";
     console.error(error);
   }
@@ -214,6 +219,27 @@ function buildPayScreen() {
   payBtn.addEventListener("click", sendPayment);
 }
 
+function buildHomeScreen() {
+  const backendUrlInput = document.getElementById("backendUrlInput");
+  const saveBackendBtn = document.getElementById("saveBackendBtn");
+  const backendSaveResult = document.getElementById("backendSaveResult");
+
+  backendUrlInput.value = getBackendUrl();
+
+  saveBackendBtn.addEventListener("click", () => {
+    const value = backendUrlInput.value.trim();
+    if (!value) {
+      backendSaveResult.textContent = "Enter a valid backend URL.";
+      backendSaveResult.className = "result-text error";
+      return;
+    }
+
+    localStorage.setItem("backend_url", value.replace(/\/$/, ""));
+    backendSaveResult.textContent = `Saved: ${localStorage.getItem("backend_url")}`;
+    backendSaveResult.className = "result-text success";
+  });
+}
+
 (function init() {
   const screen = document.body.dataset.screen;
 
@@ -224,5 +250,10 @@ function buildPayScreen() {
 
   if (screen === "pay") {
     buildPayScreen();
+    return;
+  }
+
+  if (screen === "home") {
+    buildHomeScreen();
   }
 })();

@@ -85,6 +85,46 @@ h2 {
   backdrop-filter: blur(8px);
 }
 
+.home-panel {
+  max-width: 760px;
+  margin: 40px auto 0;
+}
+
+.lead {
+  margin-top: 8px;
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 12px;
+  margin: 0 0 12px;
+  font-size: 0.83rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #b9ffd0;
+  background: rgba(48, 209, 107, 0.14);
+  border: 1px solid rgba(48, 209, 107, 0.35);
+}
+
+.home-actions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.home-btn {
+  margin-top: 0;
+}
+
+.backend-card {
+  margin-top: 16px;
+}
+
 .panel-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
@@ -297,7 +337,8 @@ h2 {
     align-items: flex-start;
   }
 
-  .panel-grid {
+  .panel-grid,
+  .home-actions {
     grid-template-columns: 1fr;
   }
 
