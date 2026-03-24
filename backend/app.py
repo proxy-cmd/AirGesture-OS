@@ -14,7 +14,7 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 accounts = {
-    "user1": 1000,
+    "user1": 100000,
     "machine_001": 0,
 }
 transactions = deque(maxlen=50)
