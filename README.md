@@ -41,6 +41,33 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
+## ESP32 Trigger Integration
+
+1. Flash ESP32 with sketch from `code.txt`.
+2. Note ESP32 local IP from Serial Monitor (example `192.168.1.45`).
+3. Start backend with ESP endpoint:
+
+```bash
+cd backend
+$env:ESP32_ENDPOINT="http://192.168.1.45/dispense"
+python app.py
+```
+
+After each successful `/pay`, backend sends HTTP POST to ESP32 and motor runs.
+
+### First-Time ESP32 Setup (Windows + Arduino IDE)
+
+1. Install Arduino IDE (2.x).
+2. Open Arduino IDE -> File -> Preferences.
+3. In **Additional boards manager URLs**, add:
+   `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+4. Open Tools -> Board -> Boards Manager.
+5. Search `esp32` and install **esp32 by Espressif Systems**.
+6. Connect ESP32 with USB cable.
+7. Open Tools -> Port and select your ESP32 COM port.
+8. Open Tools -> Board and select your ESP32 board (for most dev boards: `ESP32 Dev Module`).
+9. Copy-paste `code.txt` into Arduino IDE and click Upload.
+
 ## Single Entry Point
 
 Open only:

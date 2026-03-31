@@ -1,6 +1,9 @@
 from pathlib import Path
 from datetime import datetime
 from collections import deque
+import json
+import os
+from urllib import error, request as urlrequest
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
@@ -18,6 +21,40 @@ accounts = {
     "machine_001": 0,
 }
 transactions = deque(maxlen=50)
+ESP32_ENDPOINT = os.getenv("ESP32_ENDPOINT", "").strip()
+
+
+def notify_esp32(transaction: dict) -> dict:
+    if not ESP32_ENDPOINT:
+        return {"enabled": False, "ok": False, "message": "ESP32_ENDPOINT not configured"}
+
+    payload = json.dumps(
+        {
+            "event": "dispense",
+            "amount": transaction["amount"],
+            "transaction_id": transaction["id"],
+            "timestamp": transaction["timestamp"],
+        }
+    ).encode("utf-8")
+
+    req = urlrequest.Request(
+        ESP32_ENDPOINT,
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+
+    try:
+        with urlrequest.urlopen(req, timeout=2.5) as response:
+            return {
+                "enabled": True,
+                "ok": 200 <= response.status < 300,
+                "status_code": response.status,
+            }
+    except error.HTTPError as exc:
+        return {"enabled": True, "ok": False, "status_code": exc.code, "message": str(exc)}
+    except Exception as exc:
+        return {"enabled": True, "ok": False, "message": str(exc)}
 
 
 @app.get("/health")
@@ -73,13 +110,14 @@ def pay():
         "timestamp": datetime.now().isoformat(timespec="seconds"),
     }
     transactions.appendleft(transaction)
+    dispenser_signal = notify_esp32(transaction)
 
     socketio.emit(
         "payment_received",
         transaction,
     )
 
-    return jsonify({"status": "success", **transaction})
+    return jsonify({"status": "success", **transaction, "dispenser_signal": dispenser_signal})
 
 
 @app.get("/")
