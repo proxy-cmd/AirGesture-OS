@@ -3,7 +3,7 @@
 A realtime prototype where one page supports the complete flow:
 
 1. Intro step explains the 2-device demo.
-2. Dispense step shows QR for `machine_001`.
+2. Dispense step shows QR for `chutta mate 1`.
 3. Pay step supports two modes:
    - Scan QR mode (camera permission + scanner)
    - Demo mode (no camera)
@@ -114,7 +114,7 @@ If backend is not reachable, UI shows a clear status message.
 From backend `app.py`:
 
 - `user1`: 1000
-- `machine_001`: 0
+- `chutta mate 1`: 0
 
 ## API
 
@@ -125,7 +125,7 @@ Request:
 ```json
 {
   "from": "user1",
-  "to": "machine_001",
+  "to": "chutta mate 1",
   "amount": 20
 }
 ```
@@ -137,7 +137,7 @@ Response:
   "status": "success",
   "amount": 20,
   "from": "user1",
-  "to": "machine_001",
+  "to": "chutta mate 1",
   "machine_balance": 20,
   "sender_balance": 980
 }

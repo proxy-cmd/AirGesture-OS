@@ -1,5 +1,5 @@
 const RUPEE = "\u20B9";
-const RECEIVER_ID = "machine_001";
+const RECEIVER_ID = "chutta mate 1";
 const DEMO_PIN = "123456";
 const BACKEND_CANDIDATES = [
   window.__PROXY_BANK_API,
@@ -176,7 +176,7 @@ async function loadBalances() {
   try {
     const data = await fetchJson("/accounts");
     if (el("senderBalance")) el("senderBalance").textContent = formatInr(data.user1);
-    if (el("machineBalance")) el("machineBalance").textContent = formatInr(data.machine_001);
+    if (el("machineBalance")) el("machineBalance").textContent = formatInr(data[RECEIVER_ID]);
   } catch {}
 }
 

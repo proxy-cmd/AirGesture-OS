@@ -18,7 +18,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 accounts = {
     "user1": 100000,
-    "machine_001": 0,
+    "chutta mate 1": 0,
 }
 transactions = deque(maxlen=50)
 ESP32_ENDPOINT = os.getenv("ESP32_ENDPOINT", "").strip()
