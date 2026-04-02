@@ -285,6 +285,62 @@ function buildDispense() {
   loadTransactions();
 }
 
+function getQrImageDataUrl() {
+  const qrContainer = el("qrcode");
+  if (!qrContainer) return null;
+
+  const img = qrContainer.querySelector("img");
+  if (img && img.src) {
+    return img.src;
+  }
+
+  const canvas = qrContainer.querySelector("canvas");
+  if (canvas) {
+    return canvas.toDataURL("image/png");
+  }
+
+  return null;
+}
+
+function downloadQrAsPdf() {
+  const qrDataUrl = getQrImageDataUrl();
+  if (!qrDataUrl) {
+    alert("QR is not ready yet. Please wait a second and try again.");
+    return;
+  }
+
+  const receiverText = el("receiverId")?.textContent || RECEIVER_ID;
+  const jspdf = window.jspdf;
+  if (!jspdf || !jspdf.jsPDF) {
+    alert("PDF generator not loaded. Please refresh and try again.");
+    return;
+  }
+
+  const doc = new jspdf.jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("Proxy Bank Receiver QR", 105, 24, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+  doc.text(`Receiver ID: ${receiverText}`, 105, 34, { align: "center" });
+  doc.text("Print and place near dispenser machine.", 105, 41, { align: "center" });
+
+  const qrSize = 95;
+  const qrX = (210 - qrSize) / 2;
+  const qrY = 52;
+  doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, 105, 156, { align: "center" });
+  doc.save(`${receiverText}_qr.pdf`);
+}
+
 function updateContinueButton() {
   const amount = Number(el("amountInput")?.value || 0);
   const btn = el("continueToPinBtn");
@@ -521,6 +577,8 @@ function wireNavigation() {
       closePayFlowModal();
     }
   });
+
+  el("downloadQrPdfBtn")?.addEventListener("click", downloadQrAsPdf);
 }
 
 (async function init() {

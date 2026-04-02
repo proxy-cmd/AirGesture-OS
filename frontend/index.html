@@ -52,6 +52,7 @@
           <h3>Scan To Pay</h3>
           <p class="muted">Receiver ID: <span id="receiverId">machine_001</span></p>
           <div id="qrcode" class="qr-box" aria-label="Payment QR"></div>
+          <button id="downloadQrPdfBtn" class="secondary-btn qr-download-btn" type="button">Download QR PDF</button>
         </div>
 
         <div class="card">
@@ -172,6 +173,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
