@@ -1,103 +1,128 @@
 /*
-  Proxy Bank -> ESP32 Dispenser Bridge
+  ChuttaMate Dispenser Controller
+  Board support: ESP8266 NodeMCU + ESP32
 
-  Flow:
-  1) Flask backend sends POST to ESP32 /dispense after payment success.
-  2) ESP32 rotates motor via motor driver.
+  WHAT THIS DOES:
+  - Connects to WiFi
+  - Exposes HTTP endpoints:
+      GET  /health
+      POST /dispense
+  - On /dispense, rotates motor via L298N for a short duration
 
-  Hardware (example L298N + BO motor):
-  ESP32 GPIO26 -> IN1
-  ESP32 GPIO27 -> IN2
-  ESP32 GPIO25 -> ENA (PWM)
-  GND shared between ESP32 and motor driver
+  BACKEND INTEGRATION:
+  Set backend env var:
+    ESP32_ENDPOINT=http://<ESP_IP>/dispense
+
+  WIRING (NodeMCU + L298N):
+  - NodeMCU D1 -> L298N IN1
+  - NodeMCU D2 -> L298N IN2
+  - NodeMCU D5 -> L298N ENA  (remove ENA jumper on L298N)
+  - NodeMCU GND -> L298N GND
+  - Motor -> L298N OUT1/OUT2
+  - External battery 6-12V -> L298N +12V and GND
+  - Battery GND must be common with NodeMCU GND
 
   IMPORTANT:
-  - Motor power should come from external supply (not ESP32 5V pin).
-  - Keep grounds common (ESP32 GND <-> driver GND).
+  - Do NOT power motor from NodeMCU USB 5V
+  - Keep USB connected for programming + WiFi control
 */
 
-#include <WiFi.h>
-#include <WebServer.h>
+#if defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266WebServer.h>
+  ESP8266WebServer server(80);
+#elif defined(ESP32)
+  #include <WiFi.h>
+  #include <WebServer.h>
+  WebServer server(80);
+#else
+  #error "Use ESP8266 or ESP32 board"
+#endif
 
-// ======== YOUR WIFI ========
+// ================= USER SETTINGS =================
 const char* WIFI_SSID = "YOUR_WIFI_NAME";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
-// Optional simple token check (set same value in backend request header if you add one).
-const char* API_KEY = "proxybank-demo";
+// Motor timing tuning (ms)
+const int BASE_RUN_MS = 350;
+const int RUN_PER_RUPEE_MS = 12;
+const int MAX_RUN_MS = 2200;
 
-// ======== MOTOR PINS (edit if needed) ========
-const int MOTOR_IN1 = 26;
-const int MOTOR_IN2 = 27;
-const int MOTOR_ENA = 25; // PWM-capable pin
+// Motor speed (0-255)
+const int MOTOR_SPEED = 220;
+// =================================================
 
-// PWM config
-const int PWM_CHANNEL = 0;
-const int PWM_FREQ = 5000;
-const int PWM_RESOLUTION = 8; // 0..255
-const int MOTOR_SPEED = 210;  // tune this
+#if defined(ESP8266)
+  const int PIN_IN1 = D1;  // GPIO5
+  const int PIN_IN2 = D2;  // GPIO4
+  const int PIN_ENA = D5;  // GPIO14 (PWM)
+#elif defined(ESP32)
+  const int PIN_IN1 = 26;
+  const int PIN_IN2 = 27;
+  const int PIN_ENA = 25;
+#endif
 
-WebServer server(80);
+#if defined(ESP32)
+  const int PWM_CHANNEL = 0;
+  const int PWM_FREQ = 5000;
+  const int PWM_RES = 8;
+#endif
+
+void setMotorPWM(int value) {
+#if defined(ESP8266)
+  analogWrite(PIN_ENA, value);     // 0..255
+#elif defined(ESP32)
+  ledcWrite(PWM_CHANNEL, value);   // 0..255
+#endif
+}
 
 void stopMotor() {
-  digitalWrite(MOTOR_IN1, LOW);
-  digitalWrite(MOTOR_IN2, LOW);
-  ledcWrite(PWM_CHANNEL, 0);
+  digitalWrite(PIN_IN1, LOW);
+  digitalWrite(PIN_IN2, LOW);
+  setMotorPWM(0);
 }
 
 void rotateForward(int durationMs) {
-  digitalWrite(MOTOR_IN1, HIGH);
-  digitalWrite(MOTOR_IN2, LOW);
-  ledcWrite(PWM_CHANNEL, MOTOR_SPEED);
+  digitalWrite(PIN_IN1, HIGH);
+  digitalWrite(PIN_IN2, LOW);
+  setMotorPWM(MOTOR_SPEED);
   delay(durationMs);
   stopMotor();
 }
 
-int extractAmountFromBody(const String& body) {
-  // very lightweight extraction for JSON like: {"amount":20,...}
-  int idx = body.indexOf("\"amount\"");
-  if (idx < 0) return 0;
-  int colon = body.indexOf(':', idx);
+int parseAmountFromBody(const String& body) {
+  int i = body.indexOf("\"amount\"");
+  if (i < 0) return 0;
+
+  int colon = body.indexOf(':', i);
   if (colon < 0) return 0;
 
-  int i = colon + 1;
-  while (i < body.length() && (body[i] == ' ' || body[i] == '\t')) i++;
+  int p = colon + 1;
+  while (p < body.length() && (body[p] == ' ' || body[p] == '\t')) p++;
 
-  String num = "";
-  while (i < body.length() && isDigit(body[i])) {
-    num += body[i];
-    i++;
+  String n = "";
+  while (p < body.length() && isDigit(body[p])) {
+    n += body[p++];
   }
 
-  if (num.length() == 0) return 0;
-  return num.toInt();
+  return n.length() ? n.toInt() : 0;
 }
 
 void handleHealth() {
-  server.send(200, "application/json", "{\"status\":\"ok\",\"device\":\"esp32-dispenser\"}");
+  server.send(200, "application/json", "{\"status\":\"ok\",\"device\":\"chutta-mate-controller\"}");
 }
 
 void handleDispense() {
-  // Optional API key validation
-  String key = server.header("X-API-Key");
-  if (key.length() > 0 && key != API_KEY) {
-    server.send(401, "application/json", "{\"status\":\"failed\",\"message\":\"Invalid API key\"}");
-    return;
-  }
-
   String body = server.arg("plain");
-  int amount = extractAmountFromBody(body);
+  int amount = parseAmountFromBody(body);
   if (amount <= 0) amount = 10;
 
-  // Duration mapping (tune for your tread structure)
-  int runMs = 350 + (amount * 15);
-  if (runMs > 2200) runMs = 2200;
+  int runMs = BASE_RUN_MS + (amount * RUN_PER_RUPEE_MS);
+  if (runMs > MAX_RUN_MS) runMs = MAX_RUN_MS;
 
-  Serial.println("[DISPENSE] Request received");
-  Serial.print("Amount: ");
-  Serial.println(amount);
-  Serial.print("Motor run (ms): ");
-  Serial.println(runMs);
+  Serial.println("[DISPENSE] Trigger received");
+  Serial.print("Amount: "); Serial.println(amount);
+  Serial.print("Run ms: "); Serial.println(runMs);
 
   rotateForward(runMs);
 
@@ -118,24 +143,30 @@ void connectWifi() {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("WiFi connected. ESP32 IP: ");
+    Serial.println("WiFi connected");
+    Serial.print("ESP IP: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("WiFi connection failed. Rebooting in 5 sec...");
-    delay(5000);
-    ESP.restart();
+    Serial.println("WiFi failed. Check SSID/PASSWORD and 2.4GHz network.");
   }
 }
 
 void setup() {
   Serial.begin(115200);
+  delay(200);
 
-  pinMode(MOTOR_IN1, OUTPUT);
-  pinMode(MOTOR_IN2, OUTPUT);
-  ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-  ledcAttachPin(MOTOR_ENA, PWM_CHANNEL);
+  pinMode(PIN_IN1, OUTPUT);
+  pinMode(PIN_IN2, OUTPUT);
+  pinMode(PIN_ENA, OUTPUT);
+
+#if defined(ESP8266)
+  analogWriteRange(255);
+#elif defined(ESP32)
+  ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RES);
+  ledcAttachPin(PIN_ENA, PWM_CHANNEL);
+#endif
+
   stopMotor();
-
   connectWifi();
 
   server.on("/health", HTTP_GET, handleHealth);
