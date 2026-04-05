@@ -62,16 +62,29 @@ Step 9: Connect backend to ESP
   $env:ESP32_ENDPOINT="http://<ESP_IP>/dispense"
   python app.py
 
+Optional (if you set API key in controller code):
+- Also set:
+  $env:ESP32_API_KEY="proxybank-demo"
+
 Step 10: Run your web app
 - Open browser:
   http://127.0.0.1:5000
 - Do payment flow.
 - After successful payment, backend calls ESP /dispense and motor rotates.
 
+Step 10.1: Backend ESP status check
+- In new PowerShell:
+  Invoke-RestMethod "http://127.0.0.1:5000/esp-status"
+- If ok=true, backend can reach ESP.
+
 Step 11: Quick manual motor test (without payment UI)
 - In new PowerShell window run:
   Invoke-RestMethod -Method Post -Uri "http://<ESP_IP>/dispense" -ContentType "application/json" -Body '{"amount":20}'
 - Motor should rotate.
+
+Alternative manual trigger via backend:
+- Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:5000/trigger-dispense" -ContentType "application/json" -Body '{"amount":20}'
+- This proves backend->ESP integration path.
 
 Step 12: If motor rotates opposite side
 - Swap motor wires at OUT1/OUT2 on L298N.
