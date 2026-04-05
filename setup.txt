@@ -1,0 +1,94 @@
+ChuttaMate ESP Setup Guide (Beginner Friendly)
+
+Step 1: Open Arduino IDE
+- Connect your ESP board to laptop using USB cable.
+- Open Arduino IDE.
+
+Step 2: Select correct board and port
+- In Arduino IDE, click the board dropdown at top.
+- Select your board (for your case: NodeMCU 1.0 (ESP-12E Module)).
+- Go to Tools -> Port and select the COM port of your ESP.
+
+Step 3: Open the controller code
+- Open file: d:\ChillerMate\code.txt
+- Copy full code.
+- In Arduino IDE, create a new sketch and paste full code.
+
+Step 4: Add your Wi-Fi name and password
+- In code, find:
+  const char* WIFI_SSID = "YOUR_WIFI_NAME";
+  const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+- Replace with your real Wi-Fi details.
+- Use 2.4 GHz Wi-Fi (ESP usually does not work with 5 GHz-only network).
+
+Step 5: Upload code to ESP
+- Click Upload button (right arrow).
+- Wait for upload complete message.
+- If upload fails with connection issue:
+  - Hold BOOT button on board while upload starts.
+  - Release BOOT when uploading begins.
+
+Step 6: Open Serial Monitor
+- Open Serial Monitor from Arduino IDE.
+- Set baud rate to 115200.
+- You should see logs like:
+  - WiFi connected
+  - ESP IP: 192.168.x.x
+- Save this IP, you need it in backend step.
+
+Step 7: Wire ESP to motor driver (L298N)
+Use these connections:
+- ESP D1 -> L298N IN1
+- ESP D2 -> L298N IN2
+- ESP D5 -> L298N ENA
+- ESP GND -> L298N GND
+- Motor wires -> L298N OUT1 and OUT2
+- External battery (6V to 12V) -> L298N +12V and GND
+
+Important wiring note:
+- Keep common ground:
+  ESP GND, L298N GND, battery negative should be connected.
+- Do NOT power motor from ESP USB.
+
+Step 8: Test ESP endpoint from laptop
+- Open PowerShell and run:
+  Invoke-RestMethod "http://<ESP_IP>/health"
+- Replace <ESP_IP> with IP shown in Serial Monitor.
+- Expected response: status ok
+
+Step 9: Connect backend to ESP
+- Open PowerShell:
+  cd d:\ChillerMate\backend
+  $env:ESP32_ENDPOINT="http://<ESP_IP>/dispense"
+  python app.py
+
+Step 10: Run your web app
+- Open browser:
+  http://127.0.0.1:5000
+- Do payment flow.
+- After successful payment, backend calls ESP /dispense and motor rotates.
+
+Step 11: Quick manual motor test (without payment UI)
+- In new PowerShell window run:
+  Invoke-RestMethod -Method Post -Uri "http://<ESP_IP>/dispense" -ContentType "application/json" -Body '{"amount":20}'
+- Motor should rotate.
+
+Step 12: If motor rotates opposite side
+- Swap motor wires at OUT1/OUT2 on L298N.
+  OR
+- Swap IN1 and IN2 wires.
+
+Step 13: If ESP not connecting to Wi-Fi
+- Check SSID/password spelling.
+- Ensure router/hotspot is 2.4 GHz.
+- Keep ESP close to router.
+- Press reset button on ESP and recheck Serial Monitor.
+
+Step 14: If COM port not visible
+- Unplug and plug USB.
+- Change USB cable (some cables are charge-only).
+- Reinstall board USB driver if needed (CP210x/CH340 based on board chip).
+
+Done.
+After this, your flow is:
+payment success -> backend signal -> ESP receives /dispense -> motor rotates.
