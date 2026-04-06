@@ -1,0 +1,62 @@
+CHILLERMATE QUICK START (Laptop + ESP8266)
+
+1) CONNECT ESP
+- Plug NodeMCU (ESP-12E) to laptop via USB.
+- Open Arduino IDE.
+- Select board: "NodeMCU 1.0 (ESP-12E Module)".
+- Select correct COM port.
+
+2) FLASH ESP CODE
+- Open your sketch (the one with /health and /dispense routes).
+- Update:
+  WIFI_SSID
+  WIFI_PASSWORD
+- Click Upload (right-arrow).
+
+3) VERIFY ESP IS ONLINE
+- Open Serial Monitor.
+- Set baud: 115200.
+- Press RST on ESP once.
+- Wait for:
+  "WiFi connected"
+  "ESP IP: x.x.x.x"
+  "HTTP server started"
+- Copy that ESP IP.
+
+4) SET ESP ENDPOINT IN BACKEND (ONLY WHEN IP CHANGES)
+- In PowerShell:
+  curl.exe -s -X POST http://127.0.0.1:5000/esp-endpoint -H "Content-Type: application/json" -d "{\"endpoint\":\"http://ESP_IP/dispense\"}"
+- Replace ESP_IP with the IP from Serial Monitor.
+
+5) START APP (ONE CLICK)
+- Double-click: start_all.bat
+- Keep backend and frontend windows open.
+- Open app: http://127.0.0.1:5000
+
+6) CHECK BACKEND -> ESP LINK
+- Open in browser:
+  http://127.0.0.1:5000/esp-status
+- Expected:
+  "ok": true
+- If false/timeout:
+  - ESP and laptop are not on same Wi-Fi
+  - wrong ESP IP
+  - ESP not connected to Wi-Fi
+  - 2.4 GHz issue
+
+7) MANUAL DISPENSE TEST
+- In PowerShell:
+  curl.exe -s -X POST http://127.0.0.1:5000/trigger-dispense -H "Content-Type: application/json" -d "{\"amount\":20}"
+- Check Arduino Serial Monitor for dispense log lines.
+
+8) FULL PAYMENT FLOW TEST
+- Open app on laptop/phone.
+- Make payment in Pay section.
+- Dispense section should update instantly.
+- Backend will automatically call ESP /dispense.
+
+NETWORK RULES (IMPORTANT)
+- ESP8266 must use 2.4 GHz Wi-Fi.
+- Laptop and ESP must be on same LAN.
+- If laptop is on phone hotspot and ESP is on another Wi-Fi, it will fail.
+- If hotspot/router has client isolation, disable it.

@@ -9,10 +9,28 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
-FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+BACKEND_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BACKEND_DIR.parent / "frontend"
+SETTINGS_FILE = BACKEND_DIR / "runtime_settings.json"
+
+
+def load_runtime_settings() -> dict:
+    if not SETTINGS_FILE.exists():
+        return {}
+    try:
+        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_runtime_settings(settings: dict) -> None:
+    SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+
+
+runtime_settings = load_runtime_settings()
 MACHINE_NAME = os.getenv("MACHINE_NAME", "chutta mate 1").strip()
 USER_NAME = os.getenv("USER_NAME", "user1").strip()
-ESP32_ENDPOINT = os.getenv("ESP32_ENDPOINT", "").strip()
+ESP32_ENDPOINT = os.getenv("ESP32_ENDPOINT", runtime_settings.get("esp32_endpoint", "")).strip()
 ESP32_API_KEY = os.getenv("ESP32_API_KEY", "").strip()
 ESP32_TIMEOUT_SECONDS = float(os.getenv("ESP32_TIMEOUT_SECONDS", "2.5"))
 
@@ -63,6 +81,22 @@ def notify_esp32(transaction: dict) -> dict:
 @app.get("/health")
 def health_check():
     return jsonify({"status": "ok", "machine_name": MACHINE_NAME, "esp_endpoint": ESP32_ENDPOINT or None})
+
+
+@app.post("/esp-endpoint")
+def set_esp_endpoint():
+    global ESP32_ENDPOINT
+    payload = request.get_json(silent=True) or {}
+    endpoint = str(payload.get("endpoint", "")).strip()
+    if not endpoint:
+        return jsonify({"status": "failed", "message": "endpoint is required"}), 400
+    if not (endpoint.startswith("http://") or endpoint.startswith("https://")):
+        return jsonify({"status": "failed", "message": "endpoint must start with http:// or https://"}), 400
+
+    runtime_settings["esp32_endpoint"] = endpoint.rstrip("/")
+    save_runtime_settings(runtime_settings)
+    ESP32_ENDPOINT = runtime_settings["esp32_endpoint"]
+    return jsonify({"status": "success", "esp_endpoint": ESP32_ENDPOINT})
 
 
 @app.get("/accounts")
