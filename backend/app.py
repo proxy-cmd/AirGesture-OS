@@ -189,7 +189,14 @@ def serve_static(path: str):
 
 
 if __name__ == "__main__":
+    debug_mode = os.getenv("APP_DEBUG", "0").strip() in {"1", "true", "True"}
     print(f"[START] Machine name: {MACHINE_NAME}")
     print(f"[START] User name: {USER_NAME}")
     print(f"[START] ESP32_ENDPOINT: {ESP32_ENDPOINT or '(not set)'}")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=5000,
+        debug=debug_mode,
+        use_reloader=False,  # avoids duplicate bind issues on Windows
+    )
