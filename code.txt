@@ -1,32 +1,3 @@
-/*
-  ChuttaMate Dispenser Controller
-  Board support: ESP8266 NodeMCU + ESP32
-
-  WHAT THIS DOES:
-  - Connects to WiFi
-  - Exposes HTTP endpoints:
-      GET  /health
-      POST /dispense
-  - On /dispense, rotates motor via L298N for a short duration
-
-  BACKEND INTEGRATION:
-  Set backend env var:
-    ESP32_ENDPOINT=http://<ESP_IP>/dispense
-
-  WIRING (NodeMCU + L298N):
-  - NodeMCU D1 -> L298N IN1
-  - NodeMCU D2 -> L298N IN2
-  - NodeMCU D5 -> L298N ENA  (remove ENA jumper on L298N)
-  - NodeMCU GND -> L298N GND
-  - Motor -> L298N OUT1/OUT2
-  - External battery 6-12V -> L298N +12V and GND
-  - Battery GND must be common with NodeMCU GND
-
-  IMPORTANT:
-  - Do NOT power motor from NodeMCU USB 5V
-  - Keep USB connected for programming + WiFi control
-*/
-
 #if defined(ESP8266)
   #include <ESP8266WiFi.h>
   #include <ESP8266WebServer.h>
@@ -40,13 +11,11 @@
 #endif
 
 // ================= USER SETTINGS =================
-const char* WIFI_SSID = "YOUR_WIFI_NAME";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID = "Himanshu2";
+const char* WIFI_PASSWORD = "himanshu";
 
-// Motor timing tuning (ms)
-const int BASE_RUN_MS = 350;
-const int RUN_PER_RUPEE_MS = 12;
-const int MAX_RUN_MS = 2200;
+// Fixed dispense run time (ms)
+const int DISPENSE_RUN_MS = 20000;  // 20 seconds
 
 // Motor speed (0-255)
 const int MOTOR_SPEED = 220;
@@ -117,8 +86,7 @@ void handleDispense() {
   int amount = parseAmountFromBody(body);
   if (amount <= 0) amount = 10;
 
-  int runMs = BASE_RUN_MS + (amount * RUN_PER_RUPEE_MS);
-  if (runMs > MAX_RUN_MS) runMs = MAX_RUN_MS;
+  int runMs = DISPENSE_RUN_MS;
 
   Serial.println("[DISPENSE] Trigger received");
   Serial.print("Amount: "); Serial.println(amount);
