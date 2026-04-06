@@ -3,8 +3,8 @@ const RECEIVER_ID = "chutta mate 1";
 const DEMO_PIN = "123456";
 const BACKEND_CANDIDATES = [
   window.__PROXY_BANK_API,
+  localStorage.getItem("backend_url"),
   `${window.location.origin}`,
-  "http://127.0.0.1:5000",
 ].filter(Boolean);
 
 const state = {
@@ -19,6 +19,7 @@ const state = {
   qrBuilt: false,
   activeSection: "homeSection",
   txIds: new Set(),
+  backendRetryTimer: null,
 };
 
 function el(id) {
@@ -142,31 +143,109 @@ async function tryHealth(baseUrl) {
   }
 }
 
+function buildBackendCandidates() {
+  const list = [...BACKEND_CANDIDATES];
+  const { protocol, hostname, port } = window.location;
+
+  // If frontend is on a different port (like 5500), backend is often on 5000.
+  if (hostname) {
+    list.push(`${protocol}//${hostname}:5000`);
+    if (hostname !== "127.0.0.1" && hostname !== "localhost") {
+      list.push(`http://${hostname}:5000`);
+      list.push(`https://${hostname}:5000`);
+    }
+  }
+
+  // Local fallbacks.
+  list.push("http://127.0.0.1:5000");
+  list.push("http://localhost:5000");
+
+  // De-duplicate and normalize.
+  const unique = [];
+  const seen = new Set();
+  for (const item of list) {
+    const normalized = String(item || "").trim().replace(/\/$/, "");
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+  return unique;
+}
+
 async function autoConnectBackend() {
   const status = el("autoConnectStatus");
+  const candidates = buildBackendCandidates();
 
-  for (const raw of BACKEND_CANDIDATES) {
-    const url = String(raw).replace(/\/$/, "");
+  for (const url of candidates) {
     const ok = await tryHealth(url);
     if (ok) {
       state.backendUrl = url;
+      localStorage.setItem("backend_url", url);
       if (status) {
         status.textContent = "Backend connected automatically";
         status.classList.add("success");
+        status.classList.remove("error");
+      }
+      // If socket was never connected due to backend miss earlier, recover now.
+      if (!state.socket) {
+        connectSocket();
       }
       return;
     }
   }
 
   if (status) {
-    status.textContent = "Backend not reachable. Start server and refresh.";
+    status.textContent = "Backend not reachable yet. Retrying...";
     status.classList.add("error");
+    status.classList.remove("success");
   }
+}
+
+function startBackendAutoRetry() {
+  if (state.backendRetryTimer) return;
+
+  state.backendRetryTimer = setInterval(async () => {
+    if (state.backendUrl) {
+      clearInterval(state.backendRetryTimer);
+      state.backendRetryTimer = null;
+      return;
+    }
+    await autoConnectBackend();
+  }, 2500);
+}
+
+function stopBackendAutoRetry() {
+  if (!state.backendRetryTimer) return;
+  clearInterval(state.backendRetryTimer);
+  state.backendRetryTimer = null;
+}
+
+function handleBackendFailure(errorMessage) {
+  state.backendUrl = "";
+  if (state.socket) {
+    try {
+      state.socket.disconnect();
+    } catch {}
+    state.socket = null;
+  }
+  const status = el("autoConnectStatus");
+  if (status) {
+    status.textContent = errorMessage || "Backend disconnected. Retrying...";
+    status.classList.add("error");
+    status.classList.remove("success");
+  }
+  startBackendAutoRetry();
 }
 
 async function fetchJson(path, options = {}) {
   if (!state.backendUrl) throw new Error("Backend unavailable");
-  const res = await fetch(`${state.backendUrl}${path}`, options);
+  let res;
+  try {
+    res = await fetch(`${state.backendUrl}${path}`, options);
+  } catch (error) {
+    handleBackendFailure("Backend disconnected. Retrying...");
+    throw error;
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data?.message || "Request failed");
   return data;
@@ -259,8 +338,10 @@ function connectSocket() {
 
   state.socket = io(state.backendUrl, { transports: ["websocket", "polling"] });
   state.socket.on("payment_received", onPaymentReceived);
+  state.socket.on("connect", () => stopBackendAutoRetry());
   state.socket.on("connect_error", () => {
     if (el("statusText")) el("statusText").textContent = "Realtime link unavailable.";
+    handleBackendFailure("Realtime connection lost. Retrying...");
   });
 }
 
@@ -584,6 +665,7 @@ function wireNavigation() {
 (async function init() {
   wireNavigation();
   await autoConnectBackend();
+  startBackendAutoRetry();
   buildDispense();
   initPayControls();
 })();
